@@ -3,7 +3,8 @@
 [![CI](https://github.com/cab0a/data-cleaning-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/cab0a/data-cleaning-toolkit/actions/workflows/ci.yml)
 
 Inspect CSV structure, draft reviewable schema rules, and apply deterministic
-validation, normalization, and deduplication from the command line.
+value mapping, validation, normalization, and deduplication from the command
+line.
 
 **Primary outputs:** a cleaned CSV and machine-readable evidence that traces
 the decisions made from input to output.
@@ -52,6 +53,8 @@ evidence alongside the cleaned data.
 - Loads versioned cleaning rules from JSON
 - Supports `string`, `integer`, `decimal`, `boolean`, and `date` columns
 - Applies opt-in whitespace trimming and string case normalization
+- Maps reviewed source values to explicit canonical values using exact,
+  case-sensitive rules
 - Canonicalizes integers, finite decimal values, booleans, and dates
 - Validates required values, allowed values, regular expressions, and numeric
   minimum and maximum bounds
@@ -62,9 +65,8 @@ evidence alongside the cleaned data.
 - Records SHA-256 digests for the input, schema, and clean CSV
 - Replaces each output atomically after it has been written successfully
 - Uses only the Python standard library at runtime
-- Includes an intentionally dirty demonstration dataset, reference outputs,
-  a controlled schema-suggestion evaluation, focused tests, and CI for Python
-  3.10 through 3.14
+- Includes intentionally dirty and controlled demonstration datasets,
+  reference outputs, focused tests, and CI for Python 3.10 through 3.14
 
 ## Quick Start
 
@@ -102,10 +104,20 @@ data-cleaning-toolkit clean examples/demo_dirty.csv \
   --report output/demo_cleaning_report.json
 ```
 
+Run the controlled explicit-value-mapping example:
+
+```bash
+data-cleaning-toolkit clean examples/value_mapping_demo.csv \
+  --schema examples/value_mapping_schema.json \
+  --output output/value_mapping_clean.csv \
+  --report output/value_mapping_report.json
+```
+
 The dirty-data demo is intentionally invalid, so `inspect` and `clean` write
-their outputs and return exit code 1. The controlled `suggest-schema` example
-returns 0. These semantics make the CLI usable as a data-quality gate in
-scripts and CI.
+their outputs and return exit code 1. The value-mapping example also returns 1
+because its final row contains deliberately unmapped values. The controlled
+`suggest-schema` example returns 0. These semantics make the CLI usable as a
+data-quality gate in scripts and CI.
 
 Regenerate the committed reference artifacts with:
 
@@ -136,6 +148,7 @@ Input rows: 7
 Output rows: 3
 Invalid rows: 3
 Duplicate rows removed: 1
+Mapped cells: 0
 Transformed cells: 21
 ```
 
@@ -145,7 +158,7 @@ is in
 [`results/demo_cleaning_report.json`](results/demo_cleaning_report.json).
 
 The controlled schema-suggestion sample contains seven columns with known
-intended types. Version 0.2.0 suggests all seven as expected, including an
+intended types. The tool suggests all seven as expected, including an
 optional text column and a leading-zero postal code that must remain a string:
 
 | Expected type | Columns | Matched |
@@ -161,6 +174,29 @@ This result verifies the implementation against a controlled case; it is not
 an accuracy claim for arbitrary real-world datasets. The complete evidence is
 committed as
 [`results/demo_schema_suggestion.json`](results/demo_schema_suggestion.json).
+
+### Explicit Value Mapping Result
+
+The controlled mapping sample contains common aliases for country,
+membership, and boolean values. Reviewed rules convert 13 cells across six
+accepted rows. A seventh row contains three unregistered values and is dropped
+with explicit validation evidence:
+
+```text
+Input rows: 7
+Output rows: 6
+Invalid rows: 1
+Mapped cells: 13
+Transformed cells: 14
+Errors: 3
+```
+
+The clean CSV is committed as
+[`results/value_mapping_clean.csv`](results/value_mapping_clean.csv), and the
+row-level mapping and rejection evidence is in
+[`results/value_mapping_report.json`](results/value_mapping_report.json).
+This controlled result demonstrates behavior and reproducibility; it does not
+claim that the configured vocabulary is complete for other datasets.
 
 ## Commands
 
@@ -240,6 +276,15 @@ Unknown schema keys are rejected so a misspelled rule cannot silently pass.
       "case": "lower",
       "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
     },
+    "country": {
+      "type": "string",
+      "strip": true,
+      "value_mapping": {
+        "JP": "Japan",
+        "JPN": "Japan"
+      },
+      "allowed_values": ["Japan"]
+    },
     "lifetime_value": {
       "type": "decimal",
       "strip": true,
@@ -267,6 +312,7 @@ Unknown schema keys are rejected so a misspelled rule cannot silently pass.
 | `required` | all | Rejects empty or configured null values |
 | `strip` | all | Removes leading and trailing whitespace before validation |
 | `null_values` | all | Maps exact configured strings to an empty value |
+| `value_mapping` | all | Maps exact, case-sensitive source strings to canonical strings |
 | `case` | string | `preserve`, `lower`, or `upper` |
 | `allowed_values` | all | Accepts only the listed normalized strings |
 | `pattern` | all | Requires a full regular-expression match |
@@ -276,9 +322,12 @@ Unknown schema keys are rejected so a misspelled rule cannot silently pass.
 | `true_values` | boolean | Configured strings normalized to `true` |
 | `false_values` | boolean | Configured strings normalized to `false` |
 
-Whitespace trimming is opt-in. Blank optional values remain blank. Integer and
-decimal parsing is locale-independent: thousands separators and localized
-decimal symbols are not silently interpreted.
+Whitespace trimming is opt-in. Mapping sources are compared after configured
+null handling and trimming, then mapped targets continue through type and
+validation rules. `allowed_values` can be used with `value_mapping` to reject
+unregistered values. Blank optional values remain blank. Integer and decimal
+parsing is locale-independent: thousands separators and localized decimal
+symbols are not silently interpreted.
 
 ## Processing Order
 
@@ -286,11 +335,13 @@ Each run follows a fixed sequence:
 
 1. Read the UTF-8 CSV and verify that headers are non-empty and unique.
 2. Record rows whose field count differs from the header.
-3. Apply configured null, whitespace, case, type, and date normalization.
-4. Apply required, allowed-value, pattern, and numeric-bound validation.
-5. Keep or drop invalid rows according to `invalid_rows`.
-6. Deduplicate accepted rows using normalized key values.
-7. Write the clean CSV and a row-level JSON audit report using atomic file
+3. Apply configured null handling and whitespace trimming.
+4. Apply exact value mappings and record each match as `VALUE_MAPPED`.
+5. Apply case, type, and date normalization.
+6. Apply required, allowed-value, pattern, and numeric-bound validation.
+7. Keep or drop invalid rows according to `invalid_rows`.
+8. Deduplicate accepted rows using normalized key values.
+9. Write the clean CSV and a row-level JSON audit report using atomic file
    replacement for each artifact.
 
 An invalid row that is dropped does not reserve its deduplication key. This
@@ -305,14 +356,16 @@ The cleaning report includes:
 - Input and output row counts
 - Invalid and dropped-invalid row counts
 - Duplicate rows removed
+- Number of cells matched by explicit value mappings
 - Number of cells changed by configured normalization
 - Error and warning counts
 - Counts grouped by stable issue code
 - Row number, column name, original value, and explanation for each issue
 
-Examples of stable issue codes include `MISSING_REQUIRED_VALUE`,
-`INVALID_DATE`, `PATTERN_MISMATCH`, `VALUE_BELOW_MINIMUM`, `DUPLICATE_KEY`, and
-`ROW_WIDTH_MISMATCH`.
+Examples of stable issue codes include `VALUE_MAPPED`,
+`MISSING_REQUIRED_VALUE`, `INVALID_DATE`, `PATTERN_MISMATCH`,
+`VALUE_BELOW_MINIMUM`, `DUPLICATE_KEY`, and `ROW_WIDTH_MISMATCH`.
+`VALUE_MAPPED` has `info` severity and does not affect the command exit code.
 
 ## Exit Codes
 
@@ -334,6 +387,8 @@ The test suite covers:
 - Schema typo, invalid regex, invalid bound, and undefined key rejection
 - String, integer, decimal, boolean, and date normalization
 - Required values, patterns, allowed values, and numeric bounds
+- Exact, case-sensitive value mapping before type conversion and validation
+- Mapping counts and row-level `VALUE_MAPPED` audit evidence
 - Keep, drop, and error policies for unknown columns
 - Keep and drop policies for invalid rows
 - Normalized-key deduplication
@@ -347,7 +402,7 @@ artifacts on Python 3.10 through 3.14.
 
 ## Limitations
 
-- Version 0.2.0 supports comma-delimited UTF-8 CSV only.
+- Version 0.3.0 supports comma-delimited UTF-8 CSV only.
 - Files are processed in memory and are intended for small and moderate local
   datasets, not distributed or out-of-core workloads.
 - The clean CSV and JSON report are replaced atomically as individual files,
@@ -360,6 +415,9 @@ artifacts on Python 3.10 through 3.14.
 - The suggested `required` flag means only that no observed value was empty;
   it does not establish a domain requirement.
 - Automatic repair and probabilistic inference are intentionally excluded.
+- Value mappings are exact and case-sensitive. They do not provide fuzzy
+  matching, synonym discovery, or mapping suggestions; the configured
+  vocabulary must be reviewed for each dataset.
 - Validation is column-oriented. Cross-column and cross-row business rules are
   limited to normalized-key deduplication.
 - Regular expressions describe syntax, not semantic correctness. The example
@@ -385,13 +443,17 @@ data-cleaning-toolkit/
 │   ├── demo_dirty.csv
 │   ├── schema_suggestion_demo.csv
 │   ├── schema_suggestion_expected.json
+│   ├── value_mapping_demo.csv
+│   ├── value_mapping_schema.json
 │   └── run_demo.py
 ├── results/
 │   ├── README.md
 │   ├── demo_clean.csv
 │   ├── demo_cleaning_report.json
 │   ├── demo_inspection.json
-│   └── demo_schema_suggestion.json
+│   ├── demo_schema_suggestion.json
+│   ├── value_mapping_clean.csv
+│   └── value_mapping_report.json
 ├── src/data_cleaning_toolkit/
 │   ├── __init__.py
 │   ├── __main__.py
@@ -415,9 +477,9 @@ data-cleaning-toolkit/
 ## Roadmap
 
 Possible later improvements include configurable delimiters, streaming
-processing, cross-column rules, explicit value mappings, and JSON Lines
-support. They remain outside version 0.2.0 so schema suggestion stays
-conservative, explainable, and easy to review.
+processing, cross-column rules, mapping coverage summaries, and JSON Lines
+support. They remain outside version 0.3.0 so explicit mappings stay narrow,
+deterministic, and easy to audit.
 
 ## License
 

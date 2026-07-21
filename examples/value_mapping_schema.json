@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "unknown_columns": "error",
+  "invalid_rows": "drop",
+  "columns": {
+    "record_id": {
+      "type": "integer",
+      "required": true
+    },
+    "country": {
+      "type": "string",
+      "required": true,
+      "strip": true,
+      "value_mapping": {
+        "JP": "Japan",
+        "JPN": "Japan",
+        "japan": "Japan",
+        "US": "United States",
+        "USA": "United States"
+      },
+      "allowed_values": [
+        "Japan",
+        "United States"
+      ]
+    },
+    "membership": {
+      "type": "string",
+      "required": true,
+      "strip": true,
+      "case": "lower",
+      "value_mapping": {
+        "BASIC": "standard",
+        "PREMIUM": "premium"
+      },
+      "allowed_values": [
+        "standard",
+        "premium"
+      ]
+    },
+    "active": {
+      "type": "boolean",
+      "required": true,
+      "strip": true,
+      "value_mapping": {
+        "enabled": "true",
+        "disabled": "false"
+      }
+    }
+  }
+}

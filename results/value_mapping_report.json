@@ -1,0 +1,154 @@
+{
+  "report_version": 1,
+  "source": "examples/value_mapping_demo.csv",
+  "source_sha256": "cc064d09b390231a0946937f2de00247948279bcad9cd27926565877c5cec07e",
+  "schema": "examples/value_mapping_schema.json",
+  "schema_version": 1,
+  "schema_sha256": "5eeee17a99c6d275c75000410cec68480ebc7cd387f353d2fa8408649fe60dd3",
+  "output": "results/value_mapping_clean.csv",
+  "output_sha256": "01cb6816b9458ba92e67f2a900ef7ecaa04e4e476ecca4b03d7bb171c473e387",
+  "input_rows": 7,
+  "output_rows": 6,
+  "invalid_rows": 1,
+  "dropped_invalid_rows": 1,
+  "duplicate_rows_removed": 0,
+  "mapped_cells": 13,
+  "transformed_cells": 14,
+  "error_count": 3,
+  "warning_count": 0,
+  "issues_by_code": {
+    "INVALID_BOOLEAN": 1,
+    "VALUE_MAPPED": 13,
+    "VALUE_NOT_ALLOWED": 2
+  },
+  "issues": [
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'Japan'",
+      "row": 2,
+      "column": "country",
+      "value": "JP"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'standard'",
+      "row": 2,
+      "column": "membership",
+      "value": "BASIC"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'true'",
+      "row": 2,
+      "column": "active",
+      "value": "enabled"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'Japan'",
+      "row": 3,
+      "column": "country",
+      "value": "JPN"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'premium'",
+      "row": 3,
+      "column": "membership",
+      "value": "PREMIUM"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'false'",
+      "row": 3,
+      "column": "active",
+      "value": "disabled"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'Japan'",
+      "row": 4,
+      "column": "country",
+      "value": "japan"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'United States'",
+      "row": 5,
+      "column": "country",
+      "value": "US"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'true'",
+      "row": 5,
+      "column": "active",
+      "value": "enabled"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'United States'",
+      "row": 6,
+      "column": "country",
+      "value": "USA"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'standard'",
+      "row": 6,
+      "column": "membership",
+      "value": "BASIC"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'false'",
+      "row": 6,
+      "column": "active",
+      "value": "disabled"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'premium'",
+      "row": 7,
+      "column": "membership",
+      "value": "PREMIUM"
+    },
+    {
+      "severity": "error",
+      "code": "VALUE_NOT_ALLOWED",
+      "message": "Value is not in the configured allowed values",
+      "row": 8,
+      "column": "country",
+      "value": "ZZ"
+    },
+    {
+      "severity": "error",
+      "code": "VALUE_NOT_ALLOWED",
+      "message": "Value is not in the configured allowed values",
+      "row": 8,
+      "column": "membership",
+      "value": "VIP"
+    },
+    {
+      "severity": "error",
+      "code": "INVALID_BOOLEAN",
+      "message": "Value is not in the configured true or false values",
+      "row": 8,
+      "column": "active",
+      "value": "unknown"
+    }
+  ]
+}

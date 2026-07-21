@@ -47,7 +47,7 @@ def _normalize_value(
     rule: ColumnRule,
     *,
     row_number: int,
-) -> tuple[str, list[DataIssue]]:
+) -> tuple[str, list[DataIssue], bool]:
     value = raw.strip() if rule.strip else raw
     if value in rule.null_values:
         value = ""
@@ -61,10 +61,26 @@ def _normalize_value(
                     column=rule.name,
                     value=raw,
                 )
-            ]
-        return value, []
+            ], False
+        return value, [], False
 
     issues: list[DataIssue] = []
+    mapped = False
+    for source, target in rule.value_mapping:
+        if value == source:
+            value = target
+            mapped = True
+            issues.append(
+                DataIssue(
+                    severity="info",
+                    code="VALUE_MAPPED",
+                    message=f"Mapped value to {target!r}",
+                    row=row_number,
+                    column=rule.name,
+                    value=raw,
+                )
+            )
+            break
     numeric_value: Decimal | None = None
 
     if rule.data_type == "string":
@@ -145,7 +161,11 @@ def _normalize_value(
                 )
             )
 
-    if not issues and rule.allowed_values and value not in rule.allowed_values:
+    if (
+        not any(issue.severity == "error" for issue in issues)
+        and rule.allowed_values
+        and value not in rule.allowed_values
+    ):
         issues.append(
             _issue(
                 "VALUE_NOT_ALLOWED",
@@ -155,7 +175,11 @@ def _normalize_value(
                 value=raw,
             )
         )
-    if not issues and rule.pattern is not None and re.fullmatch(rule.pattern, value) is None:
+    if (
+        not any(issue.severity == "error" for issue in issues)
+        and rule.pattern is not None
+        and re.fullmatch(rule.pattern, value) is None
+    ):
         issues.append(
             _issue(
                 "PATTERN_MISMATCH",
@@ -186,7 +210,7 @@ def _normalize_value(
                     value=raw,
                 )
             )
-    return value, issues
+    return value, issues, mapped
 
 
 def _output_headers(table: CsvTable, schema: CleaningSchema) -> list[str]:
@@ -227,6 +251,7 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
     invalid_rows = 0
     dropped_invalid_rows = 0
     duplicate_rows_removed = 0
+    mapped_cells = 0
     transformed_cells = 0
 
     for row in table.rows:
@@ -235,13 +260,15 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
 
         for rule in schema.columns:
             raw = row.values.get(rule.name, "")
-            value, value_issues = _normalize_value(
+            value, value_issues, mapped = _normalize_value(
                 raw,
                 rule,
                 row_number=row.row_number,
             )
             normalized[rule.name] = value
             row_issues.extend(value_issues)
+            if mapped:
+                mapped_cells += 1
             if value != raw:
                 transformed_cells += 1
 
@@ -297,6 +324,7 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
         invalid_rows=invalid_rows,
         dropped_invalid_rows=dropped_invalid_rows,
         duplicate_rows_removed=duplicate_rows_removed,
+        mapped_cells=mapped_cells,
         transformed_cells=transformed_cells,
         issues=issues,
     )

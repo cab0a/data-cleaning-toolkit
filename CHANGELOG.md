@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.0] - 2026-07-21
+
+### Added
+
+- Exact, case-sensitive `value_mapping` rules for reviewed canonicalization
+- `VALUE_MAPPED` row-level audit events with informational severity
+- Mapped-cell counts in CLI output and cleaning reports
+- Controlled value-mapping sample with committed clean and audit artifacts
+- Tests for mapping order, strict matching, schema validation, and reporting
+
+### Changed
+
+- Documented value mapping as a distinct step before type conversion and
+  validation
+- Expanded the reproducible demo workflow to verify mapping behavior and
+  deliberate unknown-value rejection
+
 ## [0.2.0] - 2026-07-21
 
 ### Added

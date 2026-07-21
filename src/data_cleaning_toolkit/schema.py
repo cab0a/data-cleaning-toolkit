@@ -32,6 +32,7 @@ COLUMN_KEYS = {
     "output_format",
     "true_values",
     "false_values",
+    "value_mapping",
 }
 
 
@@ -51,6 +52,7 @@ class ColumnRule:
     output_format: str = "%Y-%m-%d"
     true_values: tuple[str, ...] = ("true", "1", "yes", "y")
     false_values: tuple[str, ...] = ("false", "0", "no", "n")
+    value_mapping: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +78,19 @@ def _string_list(value: Any, location: str) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise ValueError(f"{location} must be a list of strings")
     return tuple(value)
+
+
+def _string_mapping(value: Any, location: str) -> tuple[tuple[str, str], ...]:
+    if not isinstance(value, dict) or not all(
+        isinstance(key, str) and isinstance(item, str)
+        for key, item in value.items()
+    ):
+        raise ValueError(f"{location} must be an object with string keys and values")
+    if any(key == "" for key in value):
+        raise ValueError(f"{location} cannot contain an empty source value")
+    if any(item == "" for item in value.values()):
+        raise ValueError(f"{location} cannot contain an empty target value")
+    return tuple(value.items())
 
 
 def _decimal(value: Any, location: str) -> Decimal | None:
@@ -168,6 +183,17 @@ def _column_rule(name: str, raw: Any) -> ColumnRule:
             f"columns.{name}.true_values and false_values cannot overlap"
         )
 
+    value_mapping = _string_mapping(
+        raw.get("value_mapping", {}), f"columns.{name}.value_mapping"
+    )
+    if raw.get("strip", False) and any(
+        source != source.strip() for source, _ in value_mapping
+    ):
+        raise ValueError(
+            f"columns.{name}.value_mapping keys cannot contain surrounding "
+            "whitespace when strip is true"
+        )
+
     return ColumnRule(
         name=name,
         data_type=data_type,
@@ -189,6 +215,7 @@ def _column_rule(name: str, raw: Any) -> ColumnRule:
         output_format=output_format,
         true_values=true_values,
         false_values=false_values,
+        value_mapping=value_mapping,
     )
 
 

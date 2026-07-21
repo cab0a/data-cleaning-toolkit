@@ -1,0 +1,7 @@
+record_id,country,membership,active
+1,Japan,standard,true
+2,Japan,premium,false
+3,Japan,standard,true
+4,United States,premium,true
+5,United States,standard,false
+6,United States,premium,true

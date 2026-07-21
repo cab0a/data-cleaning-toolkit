@@ -20,6 +20,7 @@ def test_schema_loads_ordered_column_rules() -> None:
                     "type": "boolean",
                     "true_values": ["yes"],
                     "false_values": ["no"],
+                    "value_mapping": {"enabled": "yes"},
                 },
             },
         }
@@ -29,6 +30,7 @@ def test_schema_loads_ordered_column_rules() -> None:
     assert schema.columns[0].minimum == Decimal("1")
     assert schema.invalid_rows == "keep"
     assert schema.deduplicate_by == ("id",)
+    assert schema.columns[1].value_mapping == (("enabled", "yes"),)
 
 
 @pytest.mark.parametrize(
@@ -56,6 +58,33 @@ def test_schema_loads_ordered_column_rules() -> None:
         (
             {"version": 2, "columns": {"id": {}}},
             "version 1",
+        ),
+        (
+            {"columns": {"country": {"value_mapping": ["JP", "Japan"]}}},
+            "object with string keys and values",
+        ),
+        (
+            {"columns": {"country": {"value_mapping": {"JP": 1}}}},
+            "object with string keys and values",
+        ),
+        (
+            {"columns": {"country": {"value_mapping": {"": "Japan"}}}},
+            "empty source value",
+        ),
+        (
+            {"columns": {"country": {"value_mapping": {"JP": ""}}}},
+            "empty target value",
+        ),
+        (
+            {
+                "columns": {
+                    "country": {
+                        "strip": True,
+                        "value_mapping": {" JP ": "Japan"},
+                    }
+                }
+            },
+            "surrounding whitespace",
         ),
     ],
 )

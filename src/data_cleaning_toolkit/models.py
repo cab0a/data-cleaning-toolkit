@@ -50,6 +50,7 @@ class CleaningResult:
     invalid_rows: int
     dropped_invalid_rows: int
     duplicate_rows_removed: int
+    mapped_cells: int
     transformed_cells: int
     issues: list[DataIssue] = field(default_factory=list)
 
@@ -87,6 +88,7 @@ class CleaningResult:
             "invalid_rows": self.invalid_rows,
             "dropped_invalid_rows": self.dropped_invalid_rows,
             "duplicate_rows_removed": self.duplicate_rows_removed,
+            "mapped_cells": self.mapped_cells,
             "transformed_cells": self.transformed_cells,
             "error_count": self.error_count,
             "warning_count": self.warning_count,

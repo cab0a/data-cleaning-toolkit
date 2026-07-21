@@ -56,6 +56,7 @@ def test_demo_cleaning_normalizes_valid_rows_and_preserves_audit_evidence() -> N
     assert result.invalid_rows == 3
     assert result.dropped_invalid_rows == 3
     assert result.duplicate_rows_removed == 1
+    assert result.mapped_cells == 0
     assert result.transformed_cells > 0
     assert result.error_count == 6
     assert result.warning_count == 1
@@ -177,3 +178,63 @@ def test_missing_required_column_is_a_schema_mismatch(tmp_path: Path) -> None:
 
     with pytest.raises(SchemaMismatchError, match="missing required columns"):
         clean_table(read_csv_table(source), schema)
+
+
+def test_explicit_value_mapping_precedes_type_conversion_and_validation(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "input.csv"
+    source.write_text(
+        "country,active\n JP ,enabled\nXX,unknown\n",
+        encoding="utf-8",
+    )
+    schema = schema_from_mapping(
+        {
+            "invalid_rows": "drop",
+            "columns": {
+                "country": {
+                    "type": "string",
+                    "strip": True,
+                    "value_mapping": {"JP": "Japan"},
+                    "allowed_values": ["Japan"],
+                },
+                "active": {
+                    "type": "boolean",
+                    "value_mapping": {"enabled": "true"},
+                },
+            },
+        }
+    )
+
+    result = clean_table(read_csv_table(source), schema)
+
+    assert result.rows == [{"country": "Japan", "active": "true"}]
+    assert result.mapped_cells == 2
+    assert result.error_count == 2
+    assert sum(issue.code == "VALUE_MAPPED" for issue in result.issues) == 2
+    assert {issue.code for issue in result.issues if issue.severity == "error"} == {
+        "VALUE_NOT_ALLOWED",
+        "INVALID_BOOLEAN",
+    }
+
+
+def test_value_mapping_is_exact_and_case_sensitive(tmp_path: Path) -> None:
+    source = tmp_path / "input.csv"
+    source.write_text("country\njp\n", encoding="utf-8")
+    schema = schema_from_mapping(
+        {
+            "invalid_rows": "keep",
+            "columns": {
+                "country": {
+                    "value_mapping": {"JP": "Japan"},
+                    "allowed_values": ["Japan"],
+                }
+            },
+        }
+    )
+
+    result = clean_table(read_csv_table(source), schema)
+
+    assert result.rows == [{"country": "jp"}]
+    assert result.mapped_cells == 0
+    assert result.issues[0].code == "VALUE_NOT_ALLOWED"

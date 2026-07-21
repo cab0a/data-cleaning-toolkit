@@ -1,0 +1,8 @@
+record_id,country,membership,active
+1,JP,BASIC,enabled
+2,JPN,PREMIUM,disabled
+3,japan,standard,true
+4,US,premium,enabled
+5,USA,BASIC,disabled
+6,United States,PREMIUM,true
+7,ZZ,VIP,unknown

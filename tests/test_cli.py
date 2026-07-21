@@ -61,6 +61,7 @@ def test_clean_writes_csv_and_audit_report_with_documented_exit_code(
     assert audit["output_rows"] == 3
     assert audit["invalid_rows"] == 3
     assert audit["duplicate_rows_removed"] == 1
+    assert audit["mapped_cells"] == 0
     assert audit["schema_version"] == 1
     assert audit["source_sha256"] == hashlib.sha256(
         (ROOT / "examples" / "demo_dirty.csv").read_bytes()
@@ -70,6 +71,34 @@ def test_clean_writes_csv_and_audit_report_with_documented_exit_code(
     ).hexdigest()
     assert audit["output_sha256"] == hashlib.sha256(output.read_bytes()).hexdigest()
     assert "Audit report:" in capsys.readouterr().out
+
+
+def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
+    output = tmp_path / "clean.csv"
+    report = tmp_path / "audit.json"
+
+    status = main(
+        [
+            "clean",
+            str(ROOT / "examples" / "value_mapping_demo.csv"),
+            "--schema",
+            str(ROOT / "examples" / "value_mapping_schema.json"),
+            "--output",
+            str(output),
+            "--report",
+            str(report),
+        ]
+    )
+
+    assert status == 1
+    with output.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 6
+    audit = json.loads(report.read_text(encoding="utf-8"))
+    assert audit["mapped_cells"] == 13
+    assert audit["issues_by_code"]["VALUE_MAPPED"] == 13
+    assert audit["error_count"] == 3
+    assert "Mapped cells: 13" in capsys.readouterr().out
 
 
 def test_clean_uses_default_report_name(tmp_path: Path) -> None:
