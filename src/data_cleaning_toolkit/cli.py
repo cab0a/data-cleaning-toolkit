@@ -1,4 +1,4 @@
-"""Command-line interface for CSV inspection and cleaning."""
+"""Command-line interface for CSV inspection, suggestion, and cleaning."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from .csv_table import read_csv_table, write_csv_rows
 from .inspection import inspect_table
 from .reporting import json_text, sha256_file, write_json_report
 from .schema import load_schema
+from .suggestion import suggest_schema
 
 
 def _different_paths(source: Path, destination: Path) -> None:
@@ -90,11 +91,25 @@ def _cmd_clean(args: argparse.Namespace) -> int:
     return 1 if result.error_count else 0
 
 
+def _cmd_suggest_schema(args: argparse.Namespace) -> int:
+    source = Path(args.input)
+    destination = Path(args.output)
+    _different_paths(source, destination)
+    table = read_csv_table(source)
+    report = suggest_schema(table, date_format=args.date_format)
+    write_json_report(destination, report)
+    print(f"Rows: {report['input_rows']}")
+    print(f"Columns: {report['column_count']}")
+    print(f"Malformed rows: {report['malformed_rows']}")
+    print(f"Suggestion: {destination}")
+    return 1 if table.issues else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="data-cleaning-toolkit",
         description=(
-            "Inspect CSV structure and apply deterministic, schema-driven cleaning."
+            "Inspect CSV structure, suggest rules, and apply deterministic cleaning."
         ),
     )
     parser.add_argument("--version", action="version", version=__version__)
@@ -120,6 +135,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Audit JSON path; defaults to OUTPUT with .report.json suffix",
     )
     clean_parser.set_defaults(handler=_cmd_clean)
+
+    suggest_parser = commands.add_parser(
+        "suggest-schema",
+        help="Suggest conservative column rules and report inference evidence",
+    )
+    suggest_parser.add_argument("input", help="UTF-8 CSV input")
+    suggest_parser.add_argument(
+        "--output",
+        required=True,
+        help="JSON schema suggestion report path",
+    )
+    suggest_parser.add_argument(
+        "--date-format",
+        default="%Y-%m-%d",
+        help="Date format considered during inference (default: %%Y-%%m-%%d)",
+    )
+    suggest_parser.set_defaults(handler=_cmd_suggest_schema)
     return parser
 
 

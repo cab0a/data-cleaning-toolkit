@@ -1,0 +1,156 @@
+{
+  "report_version": 1,
+  "source": "examples/schema_suggestion_demo.csv",
+  "source_sha256": "522bddcd36e32b09f868ff4c05695129c7e19bd993c63b5e0c9893398bbac1c2",
+  "input_rows": 6,
+  "column_count": 7,
+  "malformed_rows": 0,
+  "date_format": "%Y-%m-%d",
+  "suggested_schema": {
+    "version": 1,
+    "unknown_columns": "error",
+    "invalid_rows": "drop",
+    "deduplicate_by": [],
+    "columns": {
+      "record_id": {
+        "type": "integer",
+        "required": true
+      },
+      "active": {
+        "type": "boolean",
+        "required": true
+      },
+      "score": {
+        "type": "decimal",
+        "required": true
+      },
+      "event_date": {
+        "type": "date",
+        "required": true,
+        "input_format": "%Y-%m-%d",
+        "output_format": "%Y-%m-%d"
+      },
+      "category": {
+        "type": "string",
+        "required": true
+      },
+      "optional_note": {
+        "type": "string",
+        "required": false,
+        "strip": true
+      },
+      "postal_code": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "columns": [
+    {
+      "name": "record_id",
+      "non_empty_cells": 6,
+      "empty_cells": 0,
+      "whitespace_changes": 0,
+      "leading_zero_values": 0,
+      "suggested_type": "integer",
+      "required": true,
+      "parse_coverage": {
+        "boolean": 0.0,
+        "integer": 1.0,
+        "decimal": 1.0,
+        "date": 0.0
+      }
+    },
+    {
+      "name": "active",
+      "non_empty_cells": 6,
+      "empty_cells": 0,
+      "whitespace_changes": 0,
+      "leading_zero_values": 0,
+      "suggested_type": "boolean",
+      "required": true,
+      "parse_coverage": {
+        "boolean": 1.0,
+        "integer": 0.0,
+        "decimal": 0.0,
+        "date": 0.0
+      }
+    },
+    {
+      "name": "score",
+      "non_empty_cells": 6,
+      "empty_cells": 0,
+      "whitespace_changes": 0,
+      "leading_zero_values": 0,
+      "suggested_type": "decimal",
+      "required": true,
+      "parse_coverage": {
+        "boolean": 0.0,
+        "integer": 0.0,
+        "decimal": 1.0,
+        "date": 0.0
+      }
+    },
+    {
+      "name": "event_date",
+      "non_empty_cells": 6,
+      "empty_cells": 0,
+      "whitespace_changes": 0,
+      "leading_zero_values": 0,
+      "suggested_type": "date",
+      "required": true,
+      "parse_coverage": {
+        "boolean": 0.0,
+        "integer": 0.0,
+        "decimal": 0.0,
+        "date": 1.0
+      }
+    },
+    {
+      "name": "category",
+      "non_empty_cells": 6,
+      "empty_cells": 0,
+      "whitespace_changes": 0,
+      "leading_zero_values": 0,
+      "suggested_type": "string",
+      "required": true,
+      "parse_coverage": {
+        "boolean": 0.0,
+        "integer": 0.0,
+        "decimal": 0.0,
+        "date": 0.0
+      }
+    },
+    {
+      "name": "optional_note",
+      "non_empty_cells": 3,
+      "empty_cells": 3,
+      "whitespace_changes": 2,
+      "leading_zero_values": 0,
+      "suggested_type": "string",
+      "required": false,
+      "parse_coverage": {
+        "boolean": 0.0,
+        "integer": 0.0,
+        "decimal": 0.0,
+        "date": 0.0
+      }
+    },
+    {
+      "name": "postal_code",
+      "non_empty_cells": 6,
+      "empty_cells": 0,
+      "whitespace_changes": 0,
+      "leading_zero_values": 6,
+      "suggested_type": "string",
+      "required": true,
+      "parse_coverage": {
+        "boolean": 0.0,
+        "integer": 0.0,
+        "decimal": 0.0,
+        "date": 0.0
+      }
+    }
+  ],
+  "issues": []
+}

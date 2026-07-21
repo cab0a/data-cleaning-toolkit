@@ -2,24 +2,29 @@
 
 [![CI](https://github.com/cab0a/data-cleaning-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/cab0a/data-cleaning-toolkit/actions/workflows/ci.yml)
 
-CSVデータの構造を検査し、明示的なJSONスキーマに従って検証・正規化・重複除去を行うPython CLIです。処理後のCSVだけでなく、除外した行、変更したセル、検出した問題をJSON監査レポートへ記録します。
+Inspect CSV structure, draft reviewable schema rules, and apply deterministic
+validation, normalization, and deduplication from the command line.
 
-**主な成果物:** クリーニング済みCSVと、入力から出力までの判断を追跡できる監査レポート
+**Primary outputs:** a cleaned CSV and machine-readable evidence that traces
+the decisions made from input to output.
 
-**想定用途:** 機械学習・分析前の小規模データ確認、受領CSVの形式検査、繰り返し実行できる前処理のプロトタイプ
+**Intended use:** local checks before analysis or machine learning, incoming
+CSV validation, and reproducible preprocessing prototypes.
 
 ## Overview
 
 Data Cleaning Toolkit is a small, deterministic command-line tool for
-inspecting and cleaning UTF-8 CSV files. It separates two tasks:
+inspecting and cleaning UTF-8 CSV files. It separates three tasks:
 
 1. `inspect` describes the table structure without guessing semantic types.
-2. `clean` applies versioned, reviewable rules from a JSON schema.
+2. `suggest-schema` proposes conservative column rules and records the
+   evidence behind each suggestion.
+3. `clean` applies versioned, reviewable rules from a JSON schema.
 
-The initial release deliberately avoids automatic type inference and opaque
-repair heuristics. A value changes only when a configured rule says how it
-should change. Invalid values remain visible in an audit report even when the
-corresponding rows are excluded from the clean output.
+Schema suggestions never modify data and are not treated as final rules. A
+value changes only when a reviewed cleaning schema says how it should change.
+Invalid values remain visible in an audit report even when the corresponding
+rows are excluded from the clean output.
 
 ## Problem
 
@@ -41,6 +46,9 @@ evidence alongside the cleaned data.
 
 - Inspects column counts, empty cells, distinct non-empty values, exact
   duplicate rows, and malformed row widths
+- Suggests conservative column types, required fields, and whitespace rules
+- Reports boolean, integer, decimal, and date parse coverage for each column
+- Preserves leading-zero identifiers as strings during schema suggestion
 - Loads versioned cleaning rules from JSON
 - Supports `string`, `integer`, `decimal`, `boolean`, and `date` columns
 - Applies opt-in whitespace trimming and string case normalization
@@ -55,7 +63,8 @@ evidence alongside the cleaned data.
 - Replaces each output atomically after it has been written successfully
 - Uses only the Python standard library at runtime
 - Includes an intentionally dirty demonstration dataset, reference outputs,
-  focused tests, and CI for Python 3.10 through 3.14
+  a controlled schema-suggestion evaluation, focused tests, and CI for Python
+  3.10 through 3.14
 
 ## Quick Start
 
@@ -77,6 +86,13 @@ data-cleaning-toolkit inspect examples/demo_dirty.csv \
   --output output/inspection.json
 ```
 
+Generate a reviewable schema candidate with per-column evidence:
+
+```bash
+data-cleaning-toolkit suggest-schema examples/schema_suggestion_demo.csv \
+  --output output/schema_suggestion.json
+```
+
 Apply the example schema:
 
 ```bash
@@ -86,9 +102,10 @@ data-cleaning-toolkit clean examples/demo_dirty.csv \
   --report output/demo_cleaning_report.json
 ```
 
-The demo is intentionally invalid, so both commands write their reports and
-return exit code 1. This makes the CLI usable as a data-quality gate in scripts
-and CI.
+The dirty-data demo is intentionally invalid, so `inspect` and `clean` write
+their outputs and return exit code 1. The controlled `suggest-schema` example
+returns 0. These semantics make the CLI usable as a data-quality gate in
+scripts and CI.
 
 Regenerate the committed reference artifacts with:
 
@@ -127,6 +144,24 @@ The cleaned output is committed as
 is in
 [`results/demo_cleaning_report.json`](results/demo_cleaning_report.json).
 
+The controlled schema-suggestion sample contains seven columns with known
+intended types. Version 0.2.0 suggests all seven as expected, including an
+optional text column and a leading-zero postal code that must remain a string:
+
+| Expected type | Columns | Matched |
+| --- | ---: | ---: |
+| Boolean | 1 | 1 |
+| Integer | 1 | 1 |
+| Decimal | 1 | 1 |
+| Date | 1 | 1 |
+| String | 3 | 3 |
+| **Total** | **7** | **7** |
+
+This result verifies the implementation against a controlled case; it is not
+an accuracy claim for arbitrary real-world datasets. The complete evidence is
+committed as
+[`results/demo_schema_suggestion.json`](results/demo_schema_suggestion.json).
+
 ## Commands
 
 ### Inspect
@@ -146,6 +181,27 @@ The report contains:
 - Distinct non-empty value counts per column
 - Exact duplicate row count
 - Rows whose field count differs from the header
+
+### Suggest Schema
+
+```text
+data-cleaning-toolkit suggest-schema INPUT.csv \
+  --output SUGGESTION.json \
+  [--date-format FORMAT]
+```
+
+The command ignores empty cells while measuring parse coverage. A non-string
+type is suggested only when every non-empty value matches that type. Candidate
+precedence is boolean, integer, decimal, and date; otherwise the column remains
+a string. Textual forms such as `true` and `false` may be suggested as boolean,
+while `0` and `1` remain eligible for integer inference. Integer-shaped values
+with leading zeros are kept as strings to avoid destructive normalization of
+identifiers.
+
+The JSON output includes a ready-to-review `suggested_schema` object plus
+per-column counts, whitespace observations, leading-zero counts, and parse
+coverage. Copy or extract the candidate only after reviewing it against the
+dataset's meaning and downstream requirements.
 
 ### Clean
 
@@ -282,6 +338,8 @@ The test suite covers:
 - Keep and drop policies for invalid rows
 - Normalized-key deduplication
 - CLI output, audit reports, default naming, and input overwrite protection
+- Conservative type suggestion, partial parse coverage, optional fields,
+  whitespace evidence, alternate date formats, and leading-zero protection
 
 GitHub Actions installs the package, checks the CLI, runs the tests, regenerates
 the reference results, and verifies that those results match the committed
@@ -289,13 +347,19 @@ artifacts on Python 3.10 through 3.14.
 
 ## Limitations
 
-- Version 0.1.0 supports comma-delimited UTF-8 CSV only.
+- Version 0.2.0 supports comma-delimited UTF-8 CSV only.
 - Files are processed in memory and are intended for small and moderate local
   datasets, not distributed or out-of-core workloads.
 - The clean CSV and JSON report are replaced atomically as individual files,
   but the pair is not committed as one filesystem transaction.
-- Type inference, automatic schema generation, and probabilistic repair are
-  intentionally excluded.
+- Schema suggestions are syntactic, not semantic. Numeric-looking identifiers,
+  category codes, timestamps, locale-specific values, and domain-specific null
+  markers require human review.
+- A suggestion reflects only the observed rows. Small, biased, or already
+  filtered samples can produce misleading candidates.
+- The suggested `required` flag means only that no observed value was empty;
+  it does not establish a domain requirement.
+- Automatic repair and probabilistic inference are intentionally excluded.
 - Validation is column-oriented. Cross-column and cross-row business rules are
   limited to normalized-key deduplication.
 - Regular expressions describe syntax, not semantic correctness. The example
@@ -319,12 +383,15 @@ data-cleaning-toolkit/
 ├── examples/
 │   ├── customer_schema.json
 │   ├── demo_dirty.csv
+│   ├── schema_suggestion_demo.csv
+│   ├── schema_suggestion_expected.json
 │   └── run_demo.py
 ├── results/
 │   ├── README.md
 │   ├── demo_clean.csv
 │   ├── demo_cleaning_report.json
-│   └── demo_inspection.json
+│   ├── demo_inspection.json
+│   └── demo_schema_suggestion.json
 ├── src/data_cleaning_toolkit/
 │   ├── __init__.py
 │   ├── __main__.py
@@ -334,7 +401,8 @@ data-cleaning-toolkit/
 │   ├── inspection.py
 │   ├── models.py
 │   ├── reporting.py
-│   └── schema.py
+│   ├── schema.py
+│   └── suggestion.py
 ├── tests/
 ├── .gitignore
 ├── CHANGELOG.md
@@ -347,10 +415,9 @@ data-cleaning-toolkit/
 ## Roadmap
 
 Possible later improvements include configurable delimiters, streaming
-processing, cross-column rules, explicit value mappings, JSON Lines support,
-and schema suggestion reports. They are
-excluded from version 0.1.0 so the first release remains narrow, auditable, and
-easy to review.
+processing, cross-column rules, explicit value mappings, and JSON Lines
+support. They remain outside version 0.2.0 so schema suggestion stays
+conservative, explainable, and easy to review.
 
 ## License
 

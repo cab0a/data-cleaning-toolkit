@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.0] - 2026-07-21
+
+### Added
+
+- Conservative `suggest-schema` command with reviewable JSON output
+- Per-column parse coverage for boolean, integer, decimal, and date candidates
+- Required-field and whitespace-normalization suggestions from observed values
+- Leading-zero protection for identifier-like integer strings
+- Configurable date format for suggestion analysis
+- Controlled seven-column evaluation sample and committed reference evidence
+
+### Changed
+
+- Expanded the reproducible demonstration workflow and CI artifact check
+- Clarified the distinction between syntactic suggestions and reviewed rules
+- Standardized the README introduction in English
+
 ## [0.1.0] - 2026-07-21
 
 ### Added

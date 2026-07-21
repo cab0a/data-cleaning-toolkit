@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "data-cleaning-toolkit"
-version = "0.1.0"
-description = "Deterministic CSV inspection and schema-driven cleaning with audit reports"
+version = "0.2.0"
+description = "Deterministic CSV inspection, schema suggestion, and rule-driven cleaning"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

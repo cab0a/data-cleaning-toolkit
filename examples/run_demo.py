@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 
@@ -24,6 +25,9 @@ def main() -> int:
     inspection = args.output_dir / "demo_inspection.json"
     cleaned = args.output_dir / "demo_clean.csv"
     audit = args.output_dir / "demo_cleaning_report.json"
+    suggestion_source = Path("examples/schema_suggestion_demo.csv")
+    expected_types = Path("examples/schema_suggestion_expected.json")
+    suggestion = args.output_dir / "demo_schema_suggestion.json"
 
     inspect_status = toolkit_main(
         ["inspect", str(source), "--output", str(inspection)]
@@ -40,6 +44,14 @@ def main() -> int:
             str(audit),
         ]
     )
+    suggestion_status = toolkit_main(
+        [
+            "suggest-schema",
+            str(suggestion_source),
+            "--output",
+            str(suggestion),
+        ]
+    )
     if inspect_status != 1:
         raise SystemExit(
             f"Expected inspect status 1 for the malformed demo row, got {inspect_status}"
@@ -47,6 +59,22 @@ def main() -> int:
     if clean_status != 1:
         raise SystemExit(
             f"Expected clean status 1 for the intentionally invalid rows, got {clean_status}"
+        )
+    if suggestion_status != 0:
+        raise SystemExit(
+            "Expected suggest-schema status 0 for the controlled demo, "
+            f"got {suggestion_status}"
+        )
+
+    report = json.loads(suggestion.read_text(encoding="utf-8"))
+    expected = json.loads(expected_types.read_text(encoding="utf-8"))
+    observed = {
+        name: rule["type"]
+        for name, rule in report["suggested_schema"]["columns"].items()
+    }
+    if observed != expected:
+        raise SystemExit(
+            f"Schema suggestion mismatch: expected {expected}, got {observed}"
         )
     return 0
 

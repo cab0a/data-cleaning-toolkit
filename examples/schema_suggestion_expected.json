@@ -1,0 +1,9 @@
+{
+  "record_id": "integer",
+  "active": "boolean",
+  "score": "decimal",
+  "event_date": "date",
+  "category": "string",
+  "optional_note": "string",
+  "postal_code": "string"
+}

@@ -98,6 +98,28 @@ def test_clean_uses_default_report_name(tmp_path: Path) -> None:
     assert (tmp_path / "clean.report.json").exists()
 
 
+def test_suggest_schema_writes_evidence_report(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    output = tmp_path / "suggestion.json"
+
+    status = main(
+        [
+            "suggest-schema",
+            str(ROOT / "examples" / "schema_suggestion_demo.csv"),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert status == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["suggested_schema"]["columns"]["record_id"]["type"] == "integer"
+    assert report["suggested_schema"]["columns"]["postal_code"]["type"] == "string"
+    assert "Suggestion:" in capsys.readouterr().out
+
+
 def test_cli_rejects_overwriting_the_input(tmp_path: Path, capsys) -> None:
     source = tmp_path / "input.csv"
     schema = tmp_path / "schema.json"

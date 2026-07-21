@@ -37,6 +37,7 @@ jobs:
         run: |
           data-cleaning-toolkit --version
           data-cleaning-toolkit --help
+          data-cleaning-toolkit suggest-schema --help
 
       - name: Run tests
         run: python -m pytest
