@@ -1,0 +1,358 @@
+# Data Cleaning Toolkit
+
+[![CI](https://github.com/cab0a/data-cleaning-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/cab0a/data-cleaning-toolkit/actions/workflows/ci.yml)
+
+CSVデータの構造を検査し、明示的なJSONスキーマに従って検証・正規化・重複除去を行うPython CLIです。処理後のCSVだけでなく、除外した行、変更したセル、検出した問題をJSON監査レポートへ記録します。
+
+**主な成果物:** クリーニング済みCSVと、入力から出力までの判断を追跡できる監査レポート
+
+**想定用途:** 機械学習・分析前の小規模データ確認、受領CSVの形式検査、繰り返し実行できる前処理のプロトタイプ
+
+## Overview
+
+Data Cleaning Toolkit is a small, deterministic command-line tool for
+inspecting and cleaning UTF-8 CSV files. It separates two tasks:
+
+1. `inspect` describes the table structure without guessing semantic types.
+2. `clean` applies versioned, reviewable rules from a JSON schema.
+
+The initial release deliberately avoids automatic type inference and opaque
+repair heuristics. A value changes only when a configured rule says how it
+should change. Invalid values remain visible in an audit report even when the
+corresponding rows are excluded from the clean output.
+
+## Problem
+
+Tabular data often arrives with whitespace differences, inconsistent casing,
+non-canonical numbers, invalid dates, missing required values, duplicate
+business keys, and rows whose field count does not match the header. Ad hoc
+cleanup in a notebook can fix the immediate file while making it difficult to
+answer:
+
+- Which rules were applied?
+- Which rows were removed, and why?
+- Did two runs use the same configuration?
+- Can the cleaned file be regenerated from committed inputs?
+
+This project makes those decisions explicit and produces machine-readable
+evidence alongside the cleaned data.
+
+## Features
+
+- Inspects column counts, empty cells, distinct non-empty values, exact
+  duplicate rows, and malformed row widths
+- Loads versioned cleaning rules from JSON
+- Supports `string`, `integer`, `decimal`, `boolean`, and `date` columns
+- Applies opt-in whitespace trimming and string case normalization
+- Canonicalizes integers, finite decimal values, booleans, and dates
+- Validates required values, allowed values, regular expressions, and numeric
+  minimum and maximum bounds
+- Keeps, drops, or rejects columns not defined in the schema
+- Keeps or drops invalid rows according to an explicit policy
+- Removes duplicate normalized keys while retaining the first accepted row
+- Writes deterministic UTF-8 CSV and JSON outputs
+- Records SHA-256 digests for the input, schema, and clean CSV
+- Replaces each output atomically after it has been written successfully
+- Uses only the Python standard library at runtime
+- Includes an intentionally dirty demonstration dataset, reference outputs,
+  focused tests, and CI for Python 3.10 through 3.14
+
+## Quick Start
+
+Python 3.10 or later is required.
+
+```bash
+git clone https://github.com/cab0a/data-cleaning-toolkit.git
+cd data-cleaning-toolkit
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+Inspect a CSV before defining cleaning rules:
+
+```bash
+data-cleaning-toolkit inspect examples/demo_dirty.csv \
+  --output output/inspection.json
+```
+
+Apply the example schema:
+
+```bash
+data-cleaning-toolkit clean examples/demo_dirty.csv \
+  --schema examples/customer_schema.json \
+  --output output/demo_clean.csv \
+  --report output/demo_cleaning_report.json
+```
+
+The demo is intentionally invalid, so both commands write their reports and
+return exit code 1. This makes the CLI usable as a data-quality gate in scripts
+and CI.
+
+Regenerate the committed reference artifacts with:
+
+```bash
+python examples/run_demo.py
+```
+
+Run the tests with:
+
+```bash
+python -m pytest
+```
+
+## Demonstration Result
+
+The example input contains seven rows:
+
+- Three valid customer rows
+- One duplicate customer key after normalization
+- One row with a missing required name
+- One row with an invalid email, country, date, and negative value
+- One row with more fields than the header
+
+The configured pipeline produces:
+
+```text
+Input rows: 7
+Output rows: 3
+Invalid rows: 3
+Duplicate rows removed: 1
+Transformed cells: 21
+```
+
+The cleaned output is committed as
+[`results/demo_clean.csv`](results/demo_clean.csv). The full row-level evidence
+is in
+[`results/demo_cleaning_report.json`](results/demo_cleaning_report.json).
+
+## Commands
+
+### Inspect
+
+```text
+data-cleaning-toolkit inspect INPUT.csv [--output REPORT.json]
+```
+
+When `--output` is omitted, the JSON report is written to standard output.
+Inspection is structural: it does not infer whether a column is numeric, a
+date, an identifier, or a category.
+
+The report contains:
+
+- Input row and column counts
+- Empty and non-empty cell counts per column
+- Distinct non-empty value counts per column
+- Exact duplicate row count
+- Rows whose field count differs from the header
+
+### Clean
+
+```text
+data-cleaning-toolkit clean INPUT.csv \
+  --schema SCHEMA.json \
+  --output CLEAN.csv \
+  [--report AUDIT.json]
+```
+
+If `--report` is omitted, `clean.csv` produces `clean.report.json`. The input
+CSV and schema are protected sources: neither can also be used as the clean
+CSV or report path.
+
+## Schema Format
+
+Schemas are JSON objects with `version: 1` and an ordered `columns` mapping.
+Unknown schema keys are rejected so a misspelled rule cannot silently pass.
+
+```json
+{
+  "version": 1,
+  "unknown_columns": "drop",
+  "invalid_rows": "drop",
+  "deduplicate_by": ["customer_id"],
+  "columns": {
+    "customer_id": {
+      "type": "integer",
+      "required": true,
+      "strip": true
+    },
+    "email": {
+      "type": "string",
+      "required": true,
+      "strip": true,
+      "case": "lower",
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    },
+    "lifetime_value": {
+      "type": "decimal",
+      "strip": true,
+      "min": 0
+    }
+  }
+}
+```
+
+### Dataset Rules
+
+| Rule | Values | Behavior |
+| --- | --- | --- |
+| `version` | `1` | Selects the supported schema format |
+| `unknown_columns` | `keep`, `drop`, `error` | Controls input columns absent from the schema |
+| `invalid_rows` | `keep`, `drop` | Controls rows with validation errors |
+| `deduplicate_by` | list of schema columns | Keeps the first accepted normalized key |
+| `columns` | ordered object | Defines output order when unknown columns are dropped |
+
+### Column Rules
+
+| Rule | Applies to | Description |
+| --- | --- | --- |
+| `type` | all | `string`, `integer`, `decimal`, `boolean`, or `date` |
+| `required` | all | Rejects empty or configured null values |
+| `strip` | all | Removes leading and trailing whitespace before validation |
+| `null_values` | all | Maps exact configured strings to an empty value |
+| `case` | string | `preserve`, `lower`, or `upper` |
+| `allowed_values` | all | Accepts only the listed normalized strings |
+| `pattern` | all | Requires a full regular-expression match |
+| `min`, `max` | integer, decimal | Applies inclusive numeric bounds |
+| `input_format` | date | `datetime.strptime` format used for parsing |
+| `output_format` | date | `datetime.strftime` format used for output |
+| `true_values` | boolean | Configured strings normalized to `true` |
+| `false_values` | boolean | Configured strings normalized to `false` |
+
+Whitespace trimming is opt-in. Blank optional values remain blank. Integer and
+decimal parsing is locale-independent: thousands separators and localized
+decimal symbols are not silently interpreted.
+
+## Processing Order
+
+Each run follows a fixed sequence:
+
+1. Read the UTF-8 CSV and verify that headers are non-empty and unique.
+2. Record rows whose field count differs from the header.
+3. Apply configured null, whitespace, case, type, and date normalization.
+4. Apply required, allowed-value, pattern, and numeric-bound validation.
+5. Keep or drop invalid rows according to `invalid_rows`.
+6. Deduplicate accepted rows using normalized key values.
+7. Write the clean CSV and a row-level JSON audit report using atomic file
+   replacement for each artifact.
+
+An invalid row that is dropped does not reserve its deduplication key. This
+allows a later valid row with the same key to be retained.
+
+## Audit Report
+
+The cleaning report includes:
+
+- Input, output, schema, and report format identifiers
+- SHA-256 digests for the input CSV, schema, and clean output CSV
+- Input and output row counts
+- Invalid and dropped-invalid row counts
+- Duplicate rows removed
+- Number of cells changed by configured normalization
+- Error and warning counts
+- Counts grouped by stable issue code
+- Row number, column name, original value, and explanation for each issue
+
+Examples of stable issue codes include `MISSING_REQUIRED_VALUE`,
+`INVALID_DATE`, `PATTERN_MISMATCH`, `VALUE_BELOW_MINIMUM`, `DUPLICATE_KEY`, and
+`ROW_WIDTH_MISMATCH`.
+
+## Exit Codes
+
+| Code | Meaning |
+| ---: | --- |
+| `0` | Command completed without validation errors |
+| `1` | Output was produced, but invalid or malformed rows were detected |
+| `2` | Input, schema, configuration, or output path prevented normal processing |
+
+Duplicate-key removal is reported as a warning and does not by itself cause
+exit code 1.
+
+## Evaluation
+
+The test suite covers:
+
+- UTF-8 BOM handling, malformed rows, and duplicate header rejection
+- Empty-cell, distinct-value, and exact-duplicate inspection counts
+- Schema typo, invalid regex, invalid bound, and undefined key rejection
+- String, integer, decimal, boolean, and date normalization
+- Required values, patterns, allowed values, and numeric bounds
+- Keep, drop, and error policies for unknown columns
+- Keep and drop policies for invalid rows
+- Normalized-key deduplication
+- CLI output, audit reports, default naming, and input overwrite protection
+
+GitHub Actions installs the package, checks the CLI, runs the tests, regenerates
+the reference results, and verifies that those results match the committed
+artifacts on Python 3.10 through 3.14.
+
+## Limitations
+
+- Version 0.1.0 supports comma-delimited UTF-8 CSV only.
+- Files are processed in memory and are intended for small and moderate local
+  datasets, not distributed or out-of-core workloads.
+- The clean CSV and JSON report are replaced atomically as individual files,
+  but the pair is not committed as one filesystem transaction.
+- Type inference, automatic schema generation, and probabilistic repair are
+  intentionally excluded.
+- Validation is column-oriented. Cross-column and cross-row business rules are
+  limited to normalized-key deduplication.
+- Regular expressions describe syntax, not semantic correctness. The example
+  email expression is deliberately simple.
+- Date parsing uses configured Python `datetime` formats and does not infer
+  locale or timezone.
+- Numeric parsing does not accept thousands separators or localized decimal
+  symbols unless the input is transformed before this tool.
+- CSV cells are not automatically escaped against spreadsheet formula
+  injection because leading `=`, `+`, `-`, and `@` may be legitimate data.
+- The tool does not anonymize, classify, or detect personally identifiable
+  information.
+- A clean file means that configured rules passed; it is not proof that the
+  data is correct for a downstream model or business decision.
+
+## Project Structure
+
+```text
+data-cleaning-toolkit/
+├── .github/workflows/ci.yml
+├── examples/
+│   ├── customer_schema.json
+│   ├── demo_dirty.csv
+│   └── run_demo.py
+├── results/
+│   ├── README.md
+│   ├── demo_clean.csv
+│   ├── demo_cleaning_report.json
+│   └── demo_inspection.json
+├── src/data_cleaning_toolkit/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── cleaning.py
+│   ├── cli.py
+│   ├── csv_table.py
+│   ├── inspection.py
+│   ├── models.py
+│   ├── reporting.py
+│   └── schema.py
+├── tests/
+├── .gitignore
+├── CHANGELOG.md
+├── LICENSE
+├── MANIFEST.in
+├── README.md
+└── pyproject.toml
+```
+
+## Roadmap
+
+Possible later improvements include configurable delimiters, streaming
+processing, cross-column rules, explicit value mappings, JSON Lines support,
+and schema suggestion reports. They are
+excluded from version 0.1.0 so the first release remains narrow, auditable, and
+easy to review.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for
+details.

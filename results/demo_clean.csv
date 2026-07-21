@@ -1,0 +1,4 @@
+customer_id,full_name,email,country,signup_date,lifetime_value
+1,Aiko Tanaka,aiko@example.com,JP,2026-01-15,1200.5
+2,Ken Ito,ken@example.com,US,2026-02-01,98
+5,Mina Lee,mina@example.com,GB,2026-03-10,

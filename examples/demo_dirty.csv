@@ -1,0 +1,8 @@
+customer_id,full_name,email,country,signup_date,lifetime_value,legacy_note
+001,  Aiko Tanaka  , AIKO@EXAMPLE.COM ,jp,2026-01-15,1200.50,import-a
+002,Ken Ito,ken@example.com,us,2026-02-01,98.00,import-a
+ 002 , Ken Ito ,KEN@EXAMPLE.COM,US,2026-02-01,98,duplicate
+003,   ,miki@example.com,jp,2026-02-20,25,missing-name
+004,Invalid User,not-an-email,xx,2026-02-30,-12,invalid-values
+005,Mina Lee,MINA@EXAMPLE.COM,gb,2026-03-10,,optional-value
+006,Wide Row,wide@example.com,jp,2026-03-11,10,legacy,unexpected

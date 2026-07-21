@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "unknown_columns": "drop",
+  "invalid_rows": "drop",
+  "deduplicate_by": [
+    "customer_id"
+  ],
+  "columns": {
+    "customer_id": {
+      "type": "integer",
+      "required": true,
+      "strip": true
+    },
+    "full_name": {
+      "type": "string",
+      "required": true,
+      "strip": true
+    },
+    "email": {
+      "type": "string",
+      "required": true,
+      "strip": true,
+      "case": "lower",
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    },
+    "country": {
+      "type": "string",
+      "required": true,
+      "strip": true,
+      "case": "upper",
+      "allowed_values": [
+        "JP",
+        "US",
+        "GB"
+      ]
+    },
+    "signup_date": {
+      "type": "date",
+      "required": true,
+      "strip": true,
+      "input_format": "%Y-%m-%d",
+      "output_format": "%Y-%m-%d"
+    },
+    "lifetime_value": {
+      "type": "decimal",
+      "strip": true,
+      "min": 0
+    }
+  }
+}

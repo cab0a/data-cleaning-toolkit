@@ -1,0 +1,302 @@
+"""Schema-driven row normalization, validation, and deduplication."""
+
+from __future__ import annotations
+
+import re
+from collections import defaultdict
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+
+from .models import CleaningResult, CsvTable, DataIssue
+from .schema import CleaningSchema, ColumnRule
+
+
+class SchemaMismatchError(ValueError):
+    """The input columns cannot be reconciled with the cleaning schema."""
+
+
+def _canonical_decimal(value: Decimal) -> str:
+    if value == 0:
+        return "0"
+    rendered = format(value, "f")
+    if "." in rendered:
+        rendered = rendered.rstrip("0").rstrip(".")
+    return rendered or "0"
+
+
+def _issue(
+    code: str,
+    message: str,
+    *,
+    row: int,
+    column: str,
+    value: str,
+) -> DataIssue:
+    return DataIssue(
+        severity="error",
+        code=code,
+        message=message,
+        row=row,
+        column=column,
+        value=value,
+    )
+
+
+def _normalize_value(
+    raw: str,
+    rule: ColumnRule,
+    *,
+    row_number: int,
+) -> tuple[str, list[DataIssue]]:
+    value = raw.strip() if rule.strip else raw
+    if value in rule.null_values:
+        value = ""
+    if value == "":
+        if rule.required:
+            return value, [
+                _issue(
+                    "MISSING_REQUIRED_VALUE",
+                    "Required value is empty",
+                    row=row_number,
+                    column=rule.name,
+                    value=raw,
+                )
+            ]
+        return value, []
+
+    issues: list[DataIssue] = []
+    numeric_value: Decimal | None = None
+
+    if rule.data_type == "string":
+        if rule.case == "lower":
+            value = value.lower()
+        elif rule.case == "upper":
+            value = value.upper()
+    elif rule.data_type == "integer":
+        if re.fullmatch(r"[+-]?\d+", value) is None:
+            issues.append(
+                _issue(
+                    "INVALID_INTEGER",
+                    "Value is not an integer",
+                    row=row_number,
+                    column=rule.name,
+                    value=raw,
+                )
+            )
+        else:
+            try:
+                value = str(int(value))
+                numeric_value = Decimal(value)
+            except ValueError:
+                issues.append(
+                    _issue(
+                        "INVALID_INTEGER",
+                        "Integer exceeds the supported conversion size",
+                        row=row_number,
+                        column=rule.name,
+                        value=raw,
+                    )
+                )
+    elif rule.data_type == "decimal":
+        try:
+            numeric_value = Decimal(value)
+            if not numeric_value.is_finite():
+                raise InvalidOperation
+            value = _canonical_decimal(numeric_value)
+        except InvalidOperation:
+            numeric_value = None
+            issues.append(
+                _issue(
+                    "INVALID_DECIMAL",
+                    "Value is not a finite decimal number",
+                    row=row_number,
+                    column=rule.name,
+                    value=raw,
+                )
+            )
+    elif rule.data_type == "boolean":
+        folded = value.casefold()
+        if folded in {item.casefold() for item in rule.true_values}:
+            value = "true"
+        elif folded in {item.casefold() for item in rule.false_values}:
+            value = "false"
+        else:
+            issues.append(
+                _issue(
+                    "INVALID_BOOLEAN",
+                    "Value is not in the configured true or false values",
+                    row=row_number,
+                    column=rule.name,
+                    value=raw,
+                )
+            )
+    elif rule.data_type == "date":
+        try:
+            parsed = datetime.strptime(value, rule.input_format)
+            value = parsed.strftime(rule.output_format)
+        except ValueError:
+            issues.append(
+                _issue(
+                    "INVALID_DATE",
+                    f"Value does not match date format {rule.input_format}",
+                    row=row_number,
+                    column=rule.name,
+                    value=raw,
+                )
+            )
+
+    if not issues and rule.allowed_values and value not in rule.allowed_values:
+        issues.append(
+            _issue(
+                "VALUE_NOT_ALLOWED",
+                "Value is not in the configured allowed values",
+                row=row_number,
+                column=rule.name,
+                value=raw,
+            )
+        )
+    if not issues and rule.pattern is not None and re.fullmatch(rule.pattern, value) is None:
+        issues.append(
+            _issue(
+                "PATTERN_MISMATCH",
+                "Value does not match the configured regular expression",
+                row=row_number,
+                column=rule.name,
+                value=raw,
+            )
+        )
+    if numeric_value is not None:
+        if rule.minimum is not None and numeric_value < rule.minimum:
+            issues.append(
+                _issue(
+                    "VALUE_BELOW_MINIMUM",
+                    f"Value is below minimum {rule.minimum}",
+                    row=row_number,
+                    column=rule.name,
+                    value=raw,
+                )
+            )
+        if rule.maximum is not None and numeric_value > rule.maximum:
+            issues.append(
+                _issue(
+                    "VALUE_ABOVE_MAXIMUM",
+                    f"Value is above maximum {rule.maximum}",
+                    row=row_number,
+                    column=rule.name,
+                    value=raw,
+                )
+            )
+    return value, issues
+
+
+def _output_headers(table: CsvTable, schema: CleaningSchema) -> list[str]:
+    schema_headers = [rule.name for rule in schema.columns]
+    schema_names = set(schema_headers)
+    input_names = set(table.headers)
+
+    missing_required = [
+        rule.name
+        for rule in schema.columns
+        if rule.required and rule.name not in input_names
+    ]
+    if missing_required:
+        raise SchemaMismatchError(
+            "Input is missing required columns: " + ", ".join(missing_required)
+        )
+
+    unknown = [header for header in table.headers if header not in schema_names]
+    if unknown and schema.unknown_columns == "error":
+        raise SchemaMismatchError(
+            "Input contains columns not defined by the schema: " + ", ".join(unknown)
+        )
+    if schema.unknown_columns == "drop":
+        return schema_headers
+    return table.headers + [name for name in schema_headers if name not in input_names]
+
+
+def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
+    headers = _output_headers(table, schema)
+    structural_by_row: dict[int, list[DataIssue]] = defaultdict(list)
+    for issue in table.issues:
+        if issue.row is not None:
+            structural_by_row[issue.row].append(issue)
+
+    output_rows: list[dict[str, str]] = []
+    issues: list[DataIssue] = []
+    seen_keys: set[tuple[str, ...]] = set()
+    invalid_rows = 0
+    dropped_invalid_rows = 0
+    duplicate_rows_removed = 0
+    transformed_cells = 0
+
+    for row in table.rows:
+        normalized = dict(row.values)
+        row_issues = list(structural_by_row[row.row_number])
+
+        for rule in schema.columns:
+            raw = row.values.get(rule.name, "")
+            value, value_issues = _normalize_value(
+                raw,
+                rule,
+                row_number=row.row_number,
+            )
+            normalized[rule.name] = value
+            row_issues.extend(value_issues)
+            if value != raw:
+                transformed_cells += 1
+
+        if schema.deduplicate_by:
+            empty_keys = [name for name in schema.deduplicate_by if normalized[name] == ""]
+            if empty_keys:
+                row_issues.append(
+                    DataIssue(
+                        severity="error",
+                        code="EMPTY_DEDUPLICATION_KEY",
+                        message=(
+                            "Deduplication key contains empty values: "
+                            + ", ".join(empty_keys)
+                        ),
+                        row=row.row_number,
+                    )
+                )
+
+        has_errors = any(issue.severity == "error" for issue in row_issues)
+        if has_errors:
+            invalid_rows += 1
+        issues.extend(row_issues)
+
+        if has_errors and schema.invalid_rows == "drop":
+            dropped_invalid_rows += 1
+            continue
+
+        if schema.deduplicate_by:
+            key = tuple(normalized[name] for name in schema.deduplicate_by)
+            if key in seen_keys:
+                duplicate_rows_removed += 1
+                issues.append(
+                    DataIssue(
+                        severity="warning",
+                        code="DUPLICATE_KEY",
+                        message=(
+                            "Duplicate key removed; first row kept for "
+                            + ", ".join(schema.deduplicate_by)
+                        ),
+                        row=row.row_number,
+                        value=" | ".join(key),
+                    )
+                )
+                continue
+            seen_keys.add(key)
+
+        output_rows.append({header: normalized.get(header, "") for header in headers})
+
+    return CleaningResult(
+        headers=headers,
+        rows=output_rows,
+        input_rows=len(table.rows),
+        invalid_rows=invalid_rows,
+        dropped_invalid_rows=dropped_invalid_rows,
+        duplicate_rows_removed=duplicate_rows_removed,
+        transformed_cells=transformed_cells,
+        issues=issues,
+    )

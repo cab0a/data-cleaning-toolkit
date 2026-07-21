@@ -1,0 +1,85 @@
+{
+  "report_version": 1,
+  "source": "examples/demo_dirty.csv",
+  "source_sha256": "39f002efcf8ceb2587b918bf0f7af38d0c32bbe3508a20a2ac37c4d4632df359",
+  "schema": "examples/customer_schema.json",
+  "schema_version": 1,
+  "schema_sha256": "173c9e71c6494987cf3f220f8216d9297a79a856d2a068c099bb2e4765622201",
+  "output": "results/demo_clean.csv",
+  "output_sha256": "4dcfad5d29cd1064796bbeb13841f3994f7730068679240fb3fa3d2749651bb7",
+  "input_rows": 7,
+  "output_rows": 3,
+  "invalid_rows": 3,
+  "dropped_invalid_rows": 3,
+  "duplicate_rows_removed": 1,
+  "transformed_cells": 21,
+  "error_count": 6,
+  "warning_count": 1,
+  "issues_by_code": {
+    "DUPLICATE_KEY": 1,
+    "INVALID_DATE": 1,
+    "MISSING_REQUIRED_VALUE": 1,
+    "PATTERN_MISMATCH": 1,
+    "ROW_WIDTH_MISMATCH": 1,
+    "VALUE_BELOW_MINIMUM": 1,
+    "VALUE_NOT_ALLOWED": 1
+  },
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "DUPLICATE_KEY",
+      "message": "Duplicate key removed; first row kept for customer_id",
+      "row": 4,
+      "column": null,
+      "value": "2"
+    },
+    {
+      "severity": "error",
+      "code": "MISSING_REQUIRED_VALUE",
+      "message": "Required value is empty",
+      "row": 5,
+      "column": "full_name",
+      "value": "   "
+    },
+    {
+      "severity": "error",
+      "code": "PATTERN_MISMATCH",
+      "message": "Value does not match the configured regular expression",
+      "row": 6,
+      "column": "email",
+      "value": "not-an-email"
+    },
+    {
+      "severity": "error",
+      "code": "VALUE_NOT_ALLOWED",
+      "message": "Value is not in the configured allowed values",
+      "row": 6,
+      "column": "country",
+      "value": "xx"
+    },
+    {
+      "severity": "error",
+      "code": "INVALID_DATE",
+      "message": "Value does not match date format %Y-%m-%d",
+      "row": 6,
+      "column": "signup_date",
+      "value": "2026-02-30"
+    },
+    {
+      "severity": "error",
+      "code": "VALUE_BELOW_MINIMUM",
+      "message": "Value is below minimum 0",
+      "row": 6,
+      "column": "lifetime_value",
+      "value": "-12"
+    },
+    {
+      "severity": "error",
+      "code": "ROW_WIDTH_MISMATCH",
+      "message": "Expected 7 fields but found 8",
+      "row": 8,
+      "column": null,
+      "value": null
+    }
+  ]
+}
