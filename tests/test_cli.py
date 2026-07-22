@@ -62,6 +62,7 @@ def test_clean_writes_csv_and_audit_report_with_documented_exit_code(
     assert audit["invalid_rows"] == 3
     assert audit["duplicate_rows_removed"] == 1
     assert audit["mapped_cells"] == 0
+    assert audit["cross_column_failures"] == 0
     assert audit["schema_version"] == 1
     assert audit["source_sha256"] == hashlib.sha256(
         (ROOT / "examples" / "demo_dirty.csv").read_bytes()
@@ -99,6 +100,38 @@ def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
     assert audit["issues_by_code"]["VALUE_MAPPED"] == 13
     assert audit["error_count"] == 3
     assert "Mapped cells: 13" in capsys.readouterr().out
+
+
+def test_clean_reports_cross_column_failures(capsys, tmp_path: Path) -> None:
+    output = tmp_path / "clean.csv"
+    report = tmp_path / "audit.json"
+
+    status = main(
+        [
+            "clean",
+            str(ROOT / "examples" / "cross_column_demo.csv"),
+            "--schema",
+            str(ROOT / "examples" / "cross_column_schema.json"),
+            "--output",
+            str(output),
+            "--report",
+            str(report),
+        ]
+    )
+
+    assert status == 1
+    with output.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 3
+    audit = json.loads(report.read_text(encoding="utf-8"))
+    assert audit["cross_column_failures"] == 6
+    assert audit["issues_by_code"]["CROSS_COLUMN_RULE_FAILED"] == 6
+    assert {issue["rule"] for issue in audit["issues"]} == {
+        "period_order",
+        "value_range_order",
+        "code_match",
+    }
+    assert "Cross-column failures: 6" in capsys.readouterr().out
 
 
 def test_clean_uses_default_report_name(tmp_path: Path) -> None:

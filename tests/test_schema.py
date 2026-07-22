@@ -33,6 +33,34 @@ def test_schema_loads_ordered_column_rules() -> None:
     assert schema.columns[1].value_mapping == (("enabled", "yes"),)
 
 
+def test_schema_loads_cross_column_rules() -> None:
+    schema = schema_from_mapping(
+        {
+            "columns": {
+                "minimum": {"type": "decimal"},
+                "maximum": {"type": "decimal"},
+            },
+            "cross_column_rules": [
+                {
+                    "name": "range_order",
+                    "left": "minimum",
+                    "operator": "less_than_or_equal",
+                    "right": "maximum",
+                }
+            ],
+        }
+    )
+
+    assert len(schema.cross_column_rules) == 1
+    rule = schema.cross_column_rules[0]
+    assert (rule.name, rule.left, rule.operator, rule.right) == (
+        "range_order",
+        "minimum",
+        "less_than_or_equal",
+        "maximum",
+    )
+
+
 @pytest.mark.parametrize(
     ("mapping", "message"),
     [
@@ -92,5 +120,114 @@ def test_schema_rejects_ambiguous_or_misspelled_rules(
     mapping: dict[str, object],
     message: str,
 ) -> None:
+    with pytest.raises(ValueError, match=message):
+        schema_from_mapping(mapping)
+
+
+@pytest.mark.parametrize(
+    ("rules", "message"),
+    [
+        ({}, "must be a list"),
+        ([{}], "name must be a non-empty string"),
+        (
+            [
+                {
+                    "name": "order",
+                    "left": "minimum",
+                    "operator": "less_than_or_equal",
+                    "right": "maximum",
+                    "unexpected": True,
+                }
+            ],
+            "unknown keys",
+        ),
+        (
+            [
+                {
+                    "name": "order",
+                    "left": "missing",
+                    "operator": "equal",
+                    "right": "maximum",
+                }
+            ],
+            "undefined columns",
+        ),
+        (
+            [
+                {
+                    "name": "self_compare",
+                    "left": "minimum",
+                    "operator": "equal",
+                    "right": "minimum",
+                }
+            ],
+            "two different columns",
+        ),
+        (
+            [
+                {
+                    "name": "mixed_types",
+                    "left": "minimum",
+                    "operator": "equal",
+                    "right": "label",
+                }
+            ],
+            "same type",
+        ),
+        (
+            [
+                {
+                    "name": "text_order",
+                    "left": "label",
+                    "operator": "less_than",
+                    "right": "other_label",
+                }
+            ],
+            "ordering only",
+        ),
+        (
+            [
+                {
+                    "name": "bad_operator",
+                    "left": "minimum",
+                    "operator": "approximately_equal",
+                    "right": "maximum",
+                }
+            ],
+            "operator must be one of",
+        ),
+        (
+            [
+                {
+                    "name": "duplicate",
+                    "left": "minimum",
+                    "operator": "equal",
+                    "right": "maximum",
+                },
+                {
+                    "name": "duplicate",
+                    "left": "minimum",
+                    "operator": "not_equal",
+                    "right": "maximum",
+                },
+            ],
+            "duplicate names",
+        ),
+    ],
+)
+def test_schema_rejects_invalid_cross_column_rules(
+    rules: object,
+    message: str,
+) -> None:
+    mapping = {
+        "columns": {
+            "minimum": {"type": "decimal"},
+            "maximum": {"type": "decimal"},
+            "label": {"type": "string"},
+            "other_label": {"type": "string"},
+        },
+        "cross_column_rules": rules,
+    }
+
     with pytest.raises(ValueError, match=message):
         schema_from_mapping(mapping)

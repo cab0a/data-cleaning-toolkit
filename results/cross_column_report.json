@@ -1,0 +1,79 @@
+{
+  "report_version": 1,
+  "source": "examples/cross_column_demo.csv",
+  "source_sha256": "024dc97af77614b06700aa98975d97f98dfb84968a3862f1e1ae1c975de93f6d",
+  "schema": "examples/cross_column_schema.json",
+  "schema_version": 1,
+  "schema_sha256": "2fbb5120edee6a44bb7042afd956bdc80ac0fa24d838b725e2f29b83c03d392f",
+  "output": "results/cross_column_clean.csv",
+  "output_sha256": "d9da2800cf6bfd82cc6e080561cf139d1078a0b895320efd5b3f14dd87779f5b",
+  "input_rows": 7,
+  "output_rows": 3,
+  "invalid_rows": 4,
+  "dropped_invalid_rows": 4,
+  "duplicate_rows_removed": 0,
+  "mapped_cells": 0,
+  "transformed_cells": 2,
+  "cross_column_failures": 6,
+  "error_count": 6,
+  "warning_count": 0,
+  "issues_by_code": {
+    "CROSS_COLUMN_RULE_FAILED": 6
+  },
+  "issues": [
+    {
+      "severity": "error",
+      "code": "CROSS_COLUMN_RULE_FAILED",
+      "message": "Cross-column rule requires period_start to be less than or equal to period_end",
+      "row": 4,
+      "column": null,
+      "value": "period_start='2026-03-31' | period_end='2026-03-01'",
+      "rule": "period_order"
+    },
+    {
+      "severity": "error",
+      "code": "CROSS_COLUMN_RULE_FAILED",
+      "message": "Cross-column rule requires minimum_value to be less than or equal to maximum_value",
+      "row": 5,
+      "column": null,
+      "value": "minimum_value='8' | maximum_value='3'",
+      "rule": "value_range_order"
+    },
+    {
+      "severity": "error",
+      "code": "CROSS_COLUMN_RULE_FAILED",
+      "message": "Cross-column rule requires confirmation_code to equal reported_code",
+      "row": 6,
+      "column": null,
+      "value": "confirmation_code='E5' | reported_code='X5'",
+      "rule": "code_match"
+    },
+    {
+      "severity": "error",
+      "code": "CROSS_COLUMN_RULE_FAILED",
+      "message": "Cross-column rule requires period_start to be less than or equal to period_end",
+      "row": 7,
+      "column": null,
+      "value": "period_start='2026-07-31' | period_end='2026-07-01'",
+      "rule": "period_order"
+    },
+    {
+      "severity": "error",
+      "code": "CROSS_COLUMN_RULE_FAILED",
+      "message": "Cross-column rule requires minimum_value to be less than or equal to maximum_value",
+      "row": 7,
+      "column": null,
+      "value": "minimum_value='9' | maximum_value='4'",
+      "rule": "value_range_order"
+    },
+    {
+      "severity": "error",
+      "code": "CROSS_COLUMN_RULE_FAILED",
+      "message": "Cross-column rule requires confirmation_code to equal reported_code",
+      "row": 7,
+      "column": null,
+      "value": "confirmation_code='F6' | reported_code='X6'",
+      "rule": "code_match"
+    }
+  ]
+}

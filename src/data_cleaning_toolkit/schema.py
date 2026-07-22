@@ -16,6 +16,7 @@ TOP_LEVEL_KEYS = {
     "unknown_columns",
     "invalid_rows",
     "deduplicate_by",
+    "cross_column_rules",
     "columns",
 }
 COLUMN_KEYS = {
@@ -34,6 +35,16 @@ COLUMN_KEYS = {
     "false_values",
     "value_mapping",
 }
+CROSS_COLUMN_RULE_KEYS = {"name", "left", "operator", "right"}
+COMPARISON_OPERATORS = {
+    "equal",
+    "not_equal",
+    "less_than",
+    "less_than_or_equal",
+    "greater_than",
+    "greater_than_or_equal",
+}
+ORDERING_OPERATORS = COMPARISON_OPERATORS - {"equal", "not_equal"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,12 +67,21 @@ class ColumnRule:
 
 
 @dataclass(frozen=True, slots=True)
+class CrossColumnRule:
+    name: str
+    left: str
+    operator: str
+    right: str
+
+
+@dataclass(frozen=True, slots=True)
 class CleaningSchema:
     version: int
     columns: tuple[ColumnRule, ...]
     unknown_columns: str = "keep"
     invalid_rows: str = "drop"
     deduplicate_by: tuple[str, ...] = ()
+    cross_column_rules: tuple[CrossColumnRule, ...] = ()
 
     @property
     def column_map(self) -> dict[str, ColumnRule]:
@@ -219,6 +239,67 @@ def _column_rule(name: str, raw: Any) -> ColumnRule:
     )
 
 
+def _cross_column_rule(
+    raw: Any,
+    index: int,
+    column_map: dict[str, ColumnRule],
+) -> CrossColumnRule:
+    location = f"cross_column_rules[{index}]"
+    if not isinstance(raw, dict):
+        raise ValueError(f"{location} must be an object")
+
+    unknown = sorted(set(raw) - CROSS_COLUMN_RULE_KEYS)
+    if unknown:
+        raise ValueError(
+            f"{location} contains unknown keys: " + ", ".join(unknown)
+        )
+
+    values: dict[str, str] = {}
+    for key in ("name", "left", "operator", "right"):
+        value = raw.get(key)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"{location}.{key} must be a non-empty string")
+        values[key] = value
+
+    operator = values["operator"]
+    if operator not in COMPARISON_OPERATORS:
+        raise ValueError(
+            f"{location}.operator must be one of: "
+            + ", ".join(sorted(COMPARISON_OPERATORS))
+        )
+
+    left = values["left"]
+    right = values["right"]
+    undefined = sorted({left, right} - set(column_map))
+    if undefined:
+        raise ValueError(
+            f"{location} references undefined columns: " + ", ".join(undefined)
+        )
+    if left == right:
+        raise ValueError(f"{location} must reference two different columns")
+
+    left_type = column_map[left].data_type
+    right_type = column_map[right].data_type
+    if left_type != right_type:
+        raise ValueError(f"{location} must compare columns with the same type")
+    if operator in ORDERING_OPERATORS and left_type not in {
+        "integer",
+        "decimal",
+        "date",
+    }:
+        raise ValueError(
+            f"{location}.operator supports ordering only for integer, decimal, "
+            "or date columns"
+        )
+
+    return CrossColumnRule(
+        name=values["name"],
+        left=left,
+        operator=operator,
+        right=right,
+    )
+
+
 def schema_from_mapping(raw: Any) -> CleaningSchema:
     if not isinstance(raw, dict):
         raise ValueError("Schema root must be a JSON object")
@@ -255,12 +336,25 @@ def schema_from_mapping(raw: Any) -> CleaningSchema:
     if len(set(deduplicate_by)) != len(deduplicate_by):
         raise ValueError("deduplicate_by cannot contain duplicate column names")
 
+    cross_column_rules_raw = raw.get("cross_column_rules", [])
+    if not isinstance(cross_column_rules_raw, list):
+        raise ValueError("cross_column_rules must be a list")
+    column_map = {rule.name: rule for rule in columns}
+    cross_column_rules = tuple(
+        _cross_column_rule(rule, index, column_map)
+        for index, rule in enumerate(cross_column_rules_raw)
+    )
+    cross_rule_names = [rule.name for rule in cross_column_rules]
+    if len(set(cross_rule_names)) != len(cross_rule_names):
+        raise ValueError("cross_column_rules cannot contain duplicate names")
+
     return CleaningSchema(
         version=version,
         columns=columns,
         unknown_columns=unknown_columns,
         invalid_rows=invalid_rows,
         deduplicate_by=deduplicate_by,
+        cross_column_rules=cross_column_rules,
     )
 
 

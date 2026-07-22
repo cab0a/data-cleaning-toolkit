@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "unknown_columns": "error",
+  "invalid_rows": "drop",
+  "columns": {
+    "record_id": {
+      "type": "integer",
+      "required": true
+    },
+    "period_start": {
+      "type": "date",
+      "required": true
+    },
+    "period_end": {
+      "type": "date",
+      "required": true
+    },
+    "minimum_value": {
+      "type": "decimal"
+    },
+    "maximum_value": {
+      "type": "decimal"
+    },
+    "confirmation_code": {
+      "type": "string",
+      "required": true,
+      "strip": true
+    },
+    "reported_code": {
+      "type": "string",
+      "required": true,
+      "strip": true
+    }
+  },
+  "cross_column_rules": [
+    {
+      "name": "period_order",
+      "left": "period_start",
+      "operator": "less_than_or_equal",
+      "right": "period_end"
+    },
+    {
+      "name": "value_range_order",
+      "left": "minimum_value",
+      "operator": "less_than_or_equal",
+      "right": "maximum_value"
+    },
+    {
+      "name": "code_match",
+      "left": "confirmation_code",
+      "operator": "equal",
+      "right": "reported_code"
+    }
+  ]
+}

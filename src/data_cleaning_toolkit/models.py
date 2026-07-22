@@ -16,9 +16,10 @@ class DataIssue:
     row: int | None = None
     column: str | None = None
     value: str | None = None
+    rule: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "severity": self.severity,
             "code": self.code,
             "message": self.message,
@@ -26,6 +27,9 @@ class DataIssue:
             "column": self.column,
             "value": self.value,
         }
+        if self.rule is not None:
+            data["rule"] = self.rule
+        return data
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +66,12 @@ class CleaningResult:
     def warning_count(self) -> int:
         return sum(issue.severity == "warning" for issue in self.issues)
 
+    @property
+    def cross_column_failure_count(self) -> int:
+        return sum(
+            issue.code == "CROSS_COLUMN_RULE_FAILED" for issue in self.issues
+        )
+
     def as_report(
         self,
         *,
@@ -90,6 +100,7 @@ class CleaningResult:
             "duplicate_rows_removed": self.duplicate_rows_removed,
             "mapped_cells": self.mapped_cells,
             "transformed_cells": self.transformed_cells,
+            "cross_column_failures": self.cross_column_failure_count,
             "error_count": self.error_count,
             "warning_count": self.warning_count,
             "issues_by_code": dict(sorted(counts.items())),

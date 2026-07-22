@@ -87,6 +87,7 @@ def _cmd_clean(args: argparse.Namespace) -> int:
     print(f"Duplicate rows removed: {result.duplicate_rows_removed}")
     print(f"Mapped cells: {result.mapped_cells}")
     print(f"Transformed cells: {result.transformed_cells}")
+    print(f"Cross-column failures: {result.cross_column_failure_count}")
     print(f"Clean CSV: {output}")
     print(f"Audit report: {report_path}")
     return 1 if result.error_count else 0

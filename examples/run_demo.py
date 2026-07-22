@@ -32,6 +32,10 @@ def main() -> int:
     mapping_schema = Path("examples/value_mapping_schema.json")
     mapping_cleaned = args.output_dir / "value_mapping_clean.csv"
     mapping_audit = args.output_dir / "value_mapping_report.json"
+    cross_source = Path("examples/cross_column_demo.csv")
+    cross_schema = Path("examples/cross_column_schema.json")
+    cross_cleaned = args.output_dir / "cross_column_clean.csv"
+    cross_audit = args.output_dir / "cross_column_report.json"
 
     inspect_status = toolkit_main(
         ["inspect", str(source), "--output", str(inspection)]
@@ -68,6 +72,18 @@ def main() -> int:
             str(mapping_audit),
         ]
     )
+    cross_status = toolkit_main(
+        [
+            "clean",
+            str(cross_source),
+            "--schema",
+            str(cross_schema),
+            "--output",
+            str(cross_cleaned),
+            "--report",
+            str(cross_audit),
+        ]
+    )
     if inspect_status != 1:
         raise SystemExit(
             f"Expected inspect status 1 for the malformed demo row, got {inspect_status}"
@@ -85,6 +101,11 @@ def main() -> int:
         raise SystemExit(
             "Expected clean status 1 for the controlled unmapped row, "
             f"got {mapping_status}"
+        )
+    if cross_status != 1:
+        raise SystemExit(
+            "Expected clean status 1 for the controlled cross-column failures, "
+            f"got {cross_status}"
         )
 
     report = json.loads(suggestion.read_text(encoding="utf-8"))
@@ -119,6 +140,23 @@ def main() -> int:
         raise SystemExit(
             "Value-mapping evaluation mismatch: expected "
             f"{expected_mapping_summary}, got {observed_mapping_summary}"
+        )
+
+    cross_report = json.loads(cross_audit.read_text(encoding="utf-8"))
+    expected_cross_summary = {
+        "input_rows": 7,
+        "output_rows": 3,
+        "invalid_rows": 4,
+        "cross_column_failures": 6,
+        "error_count": 6,
+    }
+    observed_cross_summary = {
+        key: cross_report[key] for key in expected_cross_summary
+    }
+    if observed_cross_summary != expected_cross_summary:
+        raise SystemExit(
+            "Cross-column evaluation mismatch: expected "
+            f"{expected_cross_summary}, got {observed_cross_summary}"
         )
     return 0
 

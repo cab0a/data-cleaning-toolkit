@@ -6,9 +6,20 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from .models import CleaningResult, CsvTable, DataIssue
-from .schema import CleaningSchema, ColumnRule
+from .schema import CleaningSchema, ColumnRule, CrossColumnRule
+
+
+COMPARISON_DESCRIPTIONS = {
+    "equal": "equal",
+    "not_equal": "differ from",
+    "less_than": "be less than",
+    "less_than_or_equal": "be less than or equal to",
+    "greater_than": "be greater than",
+    "greater_than_or_equal": "be greater than or equal to",
+}
 
 
 class SchemaMismatchError(ValueError):
@@ -238,8 +249,63 @@ def _output_headers(table: CsvTable, schema: CleaningSchema) -> list[str]:
     return table.headers + [name for name in schema_headers if name not in input_names]
 
 
+def _comparison_value(value: str, rule: ColumnRule) -> Any:
+    if rule.data_type in {"integer", "decimal"}:
+        return Decimal(value)
+    if rule.data_type == "date":
+        return datetime.strptime(value, rule.output_format)
+    return value
+
+
+def _comparison_holds(left: Any, operator: str, right: Any) -> bool:
+    if operator == "equal":
+        return left == right
+    if operator == "not_equal":
+        return left != right
+    if operator == "less_than":
+        return left < right
+    if operator == "less_than_or_equal":
+        return left <= right
+    if operator == "greater_than":
+        return left > right
+    if operator == "greater_than_or_equal":
+        return left >= right
+    raise ValueError(f"Unsupported comparison operator: {operator}")
+
+
+def _cross_column_issue(
+    normalized: dict[str, str],
+    rule: CrossColumnRule,
+    column_rules: dict[str, ColumnRule],
+    *,
+    row_number: int,
+) -> DataIssue | None:
+    left_value = normalized[rule.left]
+    right_value = normalized[rule.right]
+    if left_value == "" or right_value == "":
+        return None
+
+    left = _comparison_value(left_value, column_rules[rule.left])
+    right = _comparison_value(right_value, column_rules[rule.right])
+    if _comparison_holds(left, rule.operator, right):
+        return None
+
+    return DataIssue(
+        severity="error",
+        code="CROSS_COLUMN_RULE_FAILED",
+        message=(
+            f"Cross-column rule requires {rule.left} to "
+            f"{COMPARISON_DESCRIPTIONS[rule.operator]} {rule.right}"
+        ),
+        row=row_number,
+        value=f"{rule.left}={left_value!r} | {rule.right}={right_value!r}",
+        rule=rule.name,
+    )
+
+
 def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
     headers = _output_headers(table, schema)
+    column_rules = schema.column_map
     structural_by_row: dict[int, list[DataIssue]] = defaultdict(list)
     for issue in table.issues:
         if issue.row is not None:
@@ -271,6 +337,26 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
                 mapped_cells += 1
             if value != raw:
                 transformed_cells += 1
+
+        invalid_columns = {
+            issue.column
+            for issue in row_issues
+            if issue.severity == "error" and issue.column is not None
+        }
+        for cross_rule in schema.cross_column_rules:
+            if (
+                cross_rule.left in invalid_columns
+                or cross_rule.right in invalid_columns
+            ):
+                continue
+            cross_issue = _cross_column_issue(
+                normalized,
+                cross_rule,
+                column_rules,
+                row_number=row.row_number,
+            )
+            if cross_issue is not None:
+                row_issues.append(cross_issue)
 
         if schema.deduplicate_by:
             empty_keys = [name for name in schema.deduplicate_by if normalized[name] == ""]

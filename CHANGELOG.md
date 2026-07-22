@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.0] - 2026-07-22
+
+### Added
+
+- Named `cross_column_rules` for comparing two normalized columns
+- Equality and inequality operators for columns with matching configured types
+- Ordering operators for integer, decimal, and date columns
+- `CROSS_COLUMN_RULE_FAILED` audit events with rule names and normalized values
+- Cross-column failure totals in CLI output and JSON cleaning reports
+- Controlled date-order, numeric-range, and code-match evaluation artifacts
+
+### Changed
+
+- Cross-column validation now runs after per-column normalization and
+  validation and before invalid-row filtering
+- Expanded the reproducible demo workflow and test suite for relationship
+  validation, empty operands, and error de-duplication
+
 ## [0.3.0] - 2026-07-21
 
 ### Added

@@ -1,0 +1,4 @@
+record_id,period_start,period_end,minimum_value,maximum_value,confirmation_code,reported_code
+1,2026-01-01,2026-01-31,10,20,A1,A1
+2,2026-02-15,2026-02-15,-5,-5,B2,B2
+7,2026-06-01,2026-06-30,,,G7,G7

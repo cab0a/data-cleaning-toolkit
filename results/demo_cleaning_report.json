@@ -14,6 +14,7 @@
   "duplicate_rows_removed": 1,
   "mapped_cells": 0,
   "transformed_cells": 21,
+  "cross_column_failures": 0,
   "error_count": 6,
   "warning_count": 1,
   "issues_by_code": {
