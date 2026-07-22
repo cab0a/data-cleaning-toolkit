@@ -1,0 +1,9 @@
+record_id,raw_category,redacted_category,disabled_category
+1,A,X,Y
+2,alpha,sensitive-one,restricted-one
+3,alpha,sensitive-one,restricted-one
+4,alpha,sensitive-one,restricted-two
+5,beta,sensitive-two,restricted-two
+6,beta,sensitive-two,restricted-three
+7,unknown,sensitive-one,restricted-three
+8,unknown,x,restricted-three

@@ -11,6 +11,7 @@ from typing import Any
 
 
 SUPPORTED_TYPES = {"string", "integer", "decimal", "boolean", "date"}
+UNMATCHED_VALUE_MODES = {"raw", "redacted", "disabled"}
 TOP_LEVEL_KEYS = {
     "version",
     "unknown_columns",
@@ -35,6 +36,7 @@ COLUMN_KEYS = {
     "true_values",
     "false_values",
     "value_mapping",
+    "unmatched_value_mode",
 }
 CROSS_COLUMN_RULE_KEYS = {"name", "left", "operator", "right"}
 CONDITIONAL_PRESENCE_RULE_KEYS = {"name", "when_present", "require"}
@@ -66,6 +68,7 @@ class ColumnRule:
     true_values: tuple[str, ...] = ("true", "1", "yes", "y")
     false_values: tuple[str, ...] = ("false", "0", "no", "n")
     value_mapping: tuple[tuple[str, str], ...] = ()
+    unmatched_value_mode: str = "raw"
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,6 +227,21 @@ def _column_rule(name: str, raw: Any) -> ColumnRule:
             "whitespace when strip is true"
         )
 
+    unmatched_value_mode = raw.get("unmatched_value_mode", "raw")
+    if (
+        not isinstance(unmatched_value_mode, str)
+        or unmatched_value_mode not in UNMATCHED_VALUE_MODES
+    ):
+        raise ValueError(
+            f"columns.{name}.unmatched_value_mode must be raw, redacted, "
+            "or disabled"
+        )
+    if "unmatched_value_mode" in raw and not value_mapping:
+        raise ValueError(
+            f"columns.{name}.unmatched_value_mode is only valid when "
+            "value_mapping is configured"
+        )
+
     return ColumnRule(
         name=name,
         data_type=data_type,
@@ -246,6 +264,7 @@ def _column_rule(name: str, raw: Any) -> ColumnRule:
         true_values=true_values,
         false_values=false_values,
         value_mapping=value_mapping,
+        unmatched_value_mode=unmatched_value_mode,
     )
 
 

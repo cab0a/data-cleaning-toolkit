@@ -48,6 +48,10 @@ def main() -> int:
     frequency_schema = Path("examples/unmatched_frequency_schema.json")
     frequency_cleaned = args.output_dir / "unmatched_frequency_clean.csv"
     frequency_audit = args.output_dir / "unmatched_frequency_report.json"
+    privacy_source = Path("examples/privacy_modes_demo.csv")
+    privacy_schema = Path("examples/privacy_modes_schema.json")
+    privacy_cleaned = args.output_dir / "privacy_modes_clean.csv"
+    privacy_audit = args.output_dir / "privacy_modes_report.json"
 
     inspect_status = toolkit_main(
         ["inspect", str(source), "--output", str(inspection)]
@@ -132,6 +136,18 @@ def main() -> int:
             str(frequency_audit),
         ]
     )
+    privacy_status = toolkit_main(
+        [
+            "clean",
+            str(privacy_source),
+            "--schema",
+            str(privacy_schema),
+            "--output",
+            str(privacy_cleaned),
+            "--report",
+            str(privacy_audit),
+        ]
+    )
     if inspect_status != 1:
         raise SystemExit(
             f"Expected inspect status 1 for the malformed demo row, got {inspect_status}"
@@ -169,6 +185,11 @@ def main() -> int:
         raise SystemExit(
             "Expected clean status 1 for the controlled unmatched values, "
             f"got {frequency_status}"
+        )
+    if privacy_status != 0:
+        raise SystemExit(
+            "Expected clean status 0 for the privacy-mode demo, "
+            f"got {privacy_status}"
         )
 
     report = json.loads(suggestion.read_text(encoding="utf-8"))
@@ -299,6 +320,54 @@ def main() -> int:
             f"{expected_frequencies}, got "
             f"{coverage_column['unmatched_value_frequencies']}"
         )
+
+    privacy_audit_text = privacy_audit.read_text(encoding="utf-8")
+    privacy_report = json.loads(privacy_audit_text)
+    expected_privacy_summary = {
+        "input_rows": 8,
+        "output_rows": 8,
+        "invalid_rows": 0,
+        "mapped_cells": 3,
+        "error_count": 0,
+    }
+    observed_privacy_summary = {
+        key: privacy_report[key] for key in expected_privacy_summary
+    }
+    if observed_privacy_summary != expected_privacy_summary:
+        raise SystemExit(
+            "Privacy-mode evaluation mismatch: expected "
+            f"{expected_privacy_summary}, got {observed_privacy_summary}"
+        )
+    privacy_columns = {
+        item["column"]: item
+        for item in privacy_report["mapping_coverage"]["columns"]
+    }
+    expected_redacted_frequencies = [
+        {"rank": 1, "count": 4},
+        {"rank": 2, "count": 2},
+        {"rank": 3, "count": 1},
+    ]
+    if (
+        privacy_columns["redacted_category"]["unmatched_value_frequencies"]
+        != expected_redacted_frequencies
+    ):
+        raise SystemExit("Redacted frequency counts do not match the reference")
+    disabled_column = privacy_columns["disabled_category"]
+    if (
+        disabled_column["distinct_unmatched_values"] is not None
+        or disabled_column["unmatched_value_frequencies"]
+        or disabled_column["unmatched_values_truncated"] is not None
+    ):
+        raise SystemExit("Disabled frequency mode retained unmatched-value details")
+    hidden_values = (
+        "sensitive-one",
+        "sensitive-two",
+        "restricted-one",
+        "restricted-two",
+        "restricted-three",
+    )
+    if any(value in privacy_audit_text for value in hidden_values):
+        raise SystemExit("Privacy-mode report exposed a protected sample value")
     return 0
 
 

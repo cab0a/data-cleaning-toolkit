@@ -25,6 +25,7 @@
         "mapped_cells": 2,
         "unmapped_cells": 9,
         "coverage_rate": 0.181818,
+        "unmatched_value_mode": "raw",
         "distinct_unmatched_values": 3,
         "unmatched_value_frequencies": [
           {

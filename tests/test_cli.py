@@ -117,6 +117,7 @@ def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
                 "mapped_cells": 5,
                 "unmapped_cells": 2,
                 "coverage_rate": 0.714286,
+                "unmatched_value_mode": "raw",
                 "distinct_unmatched_values": 2,
                 "unmatched_value_frequencies": [
                     {"value": "United States", "count": 1},
@@ -130,6 +131,7 @@ def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
                 "mapped_cells": 4,
                 "unmapped_cells": 3,
                 "coverage_rate": 0.571429,
+                "unmatched_value_mode": "raw",
                 "distinct_unmatched_values": 3,
                 "unmatched_value_frequencies": [
                     {"value": "VIP", "count": 1},
@@ -144,6 +146,7 @@ def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
                 "mapped_cells": 4,
                 "unmapped_cells": 3,
                 "coverage_rate": 0.571429,
+                "unmatched_value_mode": "raw",
                 "distinct_unmatched_values": 2,
                 "unmatched_value_frequencies": [
                     {"value": "true", "count": 2},
@@ -195,6 +198,72 @@ def test_cli_escapes_unmatched_control_characters(
 
     assert status == 0
     assert '"\\u001b[31m": 1' in capsys.readouterr().out
+
+
+def test_cli_reports_redacted_and_disabled_frequency_modes(
+    capsys,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "clean.csv"
+    report = tmp_path / "audit.json"
+
+    status = main(
+        [
+            "clean",
+            str(ROOT / "examples" / "privacy_modes_demo.csv"),
+            "--schema",
+            str(ROOT / "examples" / "privacy_modes_schema.json"),
+            "--output",
+            str(output),
+            "--report",
+            str(report),
+        ]
+    )
+
+    assert status == 0
+    audit_text = report.read_text(encoding="utf-8")
+    audit = json.loads(audit_text)
+    coverage = {
+        item["column"]: item
+        for item in audit["mapping_coverage"]["columns"]
+    }
+    assert coverage["redacted_category"] == {
+        "column": "redacted_category",
+        "observed_non_empty_cells": 8,
+        "mapped_cells": 1,
+        "unmapped_cells": 7,
+        "coverage_rate": 0.125,
+        "unmatched_value_mode": "redacted",
+        "distinct_unmatched_values": 3,
+        "unmatched_value_frequencies": [
+            {"rank": 1, "count": 4},
+            {"rank": 2, "count": 2},
+            {"rank": 3, "count": 1},
+        ],
+        "unmatched_values_truncated": False,
+    }
+    assert coverage["disabled_category"] == {
+        "column": "disabled_category",
+        "observed_non_empty_cells": 8,
+        "mapped_cells": 1,
+        "unmapped_cells": 7,
+        "coverage_rate": 0.125,
+        "unmatched_value_mode": "disabled",
+        "distinct_unmatched_values": None,
+        "unmatched_value_frequencies": [],
+        "unmatched_values_truncated": None,
+    }
+    assert "sensitive-one" not in audit_text
+    assert "sensitive-two" not in audit_text
+    assert "restricted-one" not in audit_text
+    assert "restricted-two" not in audit_text
+    assert "restricted-three" not in audit_text
+    output_text = capsys.readouterr().out
+    assert "Unmatched values (redacted):" in output_text
+    assert "rank 1: 4" in output_text
+    assert "Unmatched values: disabled" in output_text
+    assert "sensitive-one" not in output_text
+    assert "restricted-one" not in output_text
 
 
 def test_clean_reports_cross_column_failures(capsys, tmp_path: Path) -> None:

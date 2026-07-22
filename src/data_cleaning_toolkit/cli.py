@@ -99,11 +99,23 @@ def _cmd_clean(args: argparse.Namespace) -> int:
                 f"{coverage.observed_non_empty_cells} "
                 f"({_coverage_percentage(coverage.coverage_rate)})"
             )
-            if coverage.unmatched_value_frequencies:
-                print("    Unmatched values:")
-                for value, count in coverage.unmatched_value_frequencies:
-                    rendered = json.dumps(value, ensure_ascii=True)
-                    print(f"      {rendered}: {count}")
+            if coverage.unmatched_value_mode == "disabled":
+                print("    Unmatched values: disabled")
+            elif coverage.unmatched_value_frequencies:
+                label = (
+                    "Unmatched values (redacted):"
+                    if coverage.unmatched_value_mode == "redacted"
+                    else "Unmatched values:"
+                )
+                print(f"    {label}")
+                for rank, (value, count) in enumerate(
+                    coverage.unmatched_value_frequencies, start=1
+                ):
+                    if value is None:
+                        print(f"      rank {rank}: {count}")
+                    else:
+                        rendered = json.dumps(value, ensure_ascii=True)
+                        print(f"      {rendered}: {count}")
                 if coverage.unmatched_values_truncated:
                     omitted = (
                         coverage.distinct_unmatched_values

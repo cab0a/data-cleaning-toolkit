@@ -57,6 +57,7 @@ evidence alongside the cleaned data.
   case-sensitive rules
 - Summarizes exact mapping matches by column and across the full input
 - Ranks unmatched mapping-source values by observed frequency
+- Supports raw, redacted, or disabled unmatched-value summaries per column
 - Canonicalizes integers, finite decimal values, booleans, and dates
 - Validates required values, allowed values, regular expressions, and numeric
   minimum and maximum bounds
@@ -153,6 +154,15 @@ data-cleaning-toolkit clean examples/unmatched_frequency_demo.csv \
   --report output/unmatched_frequency_report.json
 ```
 
+Compare raw, redacted, and disabled frequency modes:
+
+```bash
+data-cleaning-toolkit clean examples/privacy_modes_demo.csv \
+  --schema examples/privacy_modes_schema.json \
+  --output output/privacy_modes_clean.csv \
+  --report output/privacy_modes_report.json
+```
+
 The dirty-data demo is intentionally invalid, so `inspect` and `clean` write
 their outputs and return exit code 1. The value-mapping example also returns 1
 because its final row contains deliberately unmapped values. The cross-column
@@ -161,8 +171,8 @@ conditional-presence example returns 1 because it includes deliberately
 missing dependent values. The mapping-coverage example returns 1 because it
 includes one deliberately unknown value. The unmatched-frequency example
 returns 1 because it includes four deliberately unknown values. The controlled
-`suggest-schema` example returns 0. These semantics make the CLI usable as a
-data-quality gate in scripts and CI.
+privacy-mode and `suggest-schema` examples return 0. These semantics make the
+CLI usable as a data-quality gate in scripts and CI.
 
 Regenerate the committed reference artifacts with:
 
@@ -288,6 +298,35 @@ mapping is appropriate. The clean CSV is committed as
 [`results/unmatched_frequency_clean.csv`](results/unmatched_frequency_clean.csv),
 and the complete controlled audit is in
 [`results/unmatched_frequency_report.json`](results/unmatched_frequency_report.json).
+
+### Privacy Mode Result
+
+The controlled privacy sample applies all three `unmatched_value_mode` values
+to columns with the same mapping coverage. The CLI retains actionable counts
+while changing how unmatched values are represented:
+
+```text
+raw_category: 1/8 (12.5%)
+  Unmatched values:
+    "alpha": 3
+    "beta": 2
+    "unknown": 2
+redacted_category: 1/8 (12.5%)
+  Unmatched values (redacted):
+    rank 1: 4
+    rank 2: 2
+    rank 3: 1
+disabled_category: 1/8 (12.5%)
+  Unmatched values: disabled
+```
+
+The redacted report contains counts and ranks without source strings. The
+disabled report retains mapping coverage but sets distinct and truncation
+metadata to `null` and writes no frequency entries. The clean CSV deliberately
+retains the original non-mapped values: these modes protect only the frequency
+summary, not the cleaned data or row-level issues. The controlled outputs are
+committed as [`results/privacy_modes_clean.csv`](results/privacy_modes_clean.csv)
+and [`results/privacy_modes_report.json`](results/privacy_modes_report.json).
 
 ### Cross-Column Validation Result
 
@@ -471,6 +510,7 @@ Unknown schema keys are rejected so a misspelled rule cannot silently pass.
 | `strip` | all | Removes leading and trailing whitespace before validation |
 | `null_values` | all | Maps exact configured strings to an empty value |
 | `value_mapping` | all | Maps exact, case-sensitive source strings to canonical strings |
+| `unmatched_value_mode` | columns with `value_mapping` | `raw` (default), `redacted`, or `disabled` |
 | `case` | string | `preserve`, `lower`, or `upper` |
 | `allowed_values` | all | Accepts only the listed normalized strings |
 | `pattern` | all | Requires a full regular-expression match |
@@ -502,19 +542,34 @@ For each configured column, the report contains:
 - `unmapped_cells`: observed non-empty cells that did not match a source key
 - `coverage_rate`: `mapped_cells / observed_non_empty_cells`, rounded to six
   decimal places, or `null` when no non-empty cells were observed
+- `unmatched_value_mode`: the configured frequency disclosure policy
 - `distinct_unmatched_values`: number of distinct non-empty source values that
-  did not match a mapping key
-- `unmatched_value_frequencies`: up to ten values with their observed counts
+  did not match a mapping key, or `null` when frequency collection is disabled
+- `unmatched_value_frequencies`: up to ten raw values and counts, ranked counts
+  without values, or an empty list, depending on the configured mode
 - `unmatched_values_truncated`: whether additional distinct values were
-  omitted from the summary
+  omitted from the summary, or `null` when frequency collection is disabled
 
 The report also includes the same counts across all mapping columns. Counts
 cover all input rows, including rows later dropped by validation or
 deduplication, because the summary describes the supplied data rather than
 only the accepted output. The CLI renders the rate as a percentage and uses
-`n/a` for a zero denominator. Unmatched values are sorted by descending count;
-ties use ascending case-sensitive value order. CLI values are JSON-encoded so
-control characters are escaped.
+`n/a` for a zero denominator.
+
+`unmatched_value_mode` is configured per mapping column:
+
+- `raw` preserves version 0.7 behavior. Values are sorted by descending count;
+  ties use ascending case-sensitive value order. CLI values are JSON-encoded
+  so control characters are escaped.
+- `redacted` uses the same deterministic ordering but emits only one-based
+  ranks and counts. The rank describes the current report order and is not a
+  stable identifier across changed inputs.
+- `disabled` retains observed, mapped, and unmapped cell counts but does not
+  collect distinct values or frequencies for that column.
+
+The redacted mode still stores source values in memory while calculating
+counts; it controls only the report and CLI representation. Use `disabled`
+when even frequency collection is inappropriate.
 
 ### Cross-Column Rules
 
@@ -565,8 +620,9 @@ Each run follows a fixed sequence:
 1. Read the UTF-8 CSV and verify that headers are non-empty and unique.
 2. Record rows whose field count differs from the header.
 3. Apply configured null handling and whitespace trimming.
-4. Count non-empty mapping candidates and unmatched source frequencies, apply
-   exact value mappings, and record each match as `VALUE_MAPPED`.
+4. Count non-empty mapping candidates, collect unmatched source frequencies
+   according to each column's disclosure mode, apply exact value mappings, and
+   record each match as `VALUE_MAPPED`.
 5. Apply case, type, and date normalization.
 6. Apply required, allowed-value, pattern, and numeric-bound validation.
 7. Apply conditional-presence rules to normalized values.
@@ -591,7 +647,8 @@ The cleaning report includes:
 - Duplicate rows removed
 - Number of cells matched by explicit value mappings
 - Mapping coverage counts and rates by configured column and overall
-- Top unmatched source-value frequencies and truncation metadata by column
+- Policy-aware unmatched source-value frequencies and truncation metadata by
+  column
 - Number of cells changed by configured normalization
 - Number of failed cross-column rules
 - Number of failed conditional-presence rules
@@ -635,6 +692,8 @@ The test suite covers:
   invalid rows, per-column rates, overall rates, and CLI reporting
 - Unmatched-value frequency ordering, stable tie-breaking, ten-value limits,
   truncation metadata, and CLI escaping
+- Raw, redacted, and disabled frequency modes, including schema rejection,
+  value non-disclosure, rank output, and disabled collection
 - Equality checks across matching normalized types and ordering checks for
   integer, decimal, and date columns
 - Cross-column schema rejection, empty-value behavior, error de-duplication,
@@ -654,7 +713,7 @@ artifacts on Python 3.10 through 3.14.
 
 ## Limitations
 
-- Version 0.7.0 supports comma-delimited UTF-8 CSV only.
+- Version 0.8.0 supports comma-delimited UTF-8 CSV only.
 - Files are processed in memory and are intended for small and moderate local
   datasets, not distributed or out-of-core workloads.
 - The clean CSV and JSON report are replaced atomically as individual files,
@@ -673,9 +732,15 @@ artifacts on Python 3.10 through 3.14.
 - Mapping coverage is an exact-match rate, not a quality score. Unmapped cells
   may be valid canonical values, unknown values, or values handled by later
   normalization and validation rules.
-- Frequency summaries expose normalized source values in the JSON audit and
-  CLI output. Treat these artifacts as sensitive when inputs may contain
+- Raw frequency summaries expose normalized source values in the JSON audit
+  and CLI output. Treat these artifacts as sensitive when inputs may contain
   confidential, personal, or identifying values.
+- Redacted summaries hide source strings but retain frequency counts and
+  distinct-value totals, which can still reveal information about a
+  distribution. Source values are stored in memory during aggregation.
+- Disabled frequency mode suppresses distinct-value and frequency details, but
+  it does not redact the clean CSV, schema, source file, or row-level audit
+  issues. Review every artifact before sharing it.
 - Frequency summaries retain only the top ten distinct unmatched values per
   column. They are diagnostic samples, not complete frequency tables when
   `unmatched_values_truncated` is true.
@@ -719,6 +784,8 @@ data-cleaning-toolkit/
 │   ├── demo_dirty.csv
 │   ├── mapping_coverage_demo.csv
 │   ├── mapping_coverage_schema.json
+│   ├── privacy_modes_demo.csv
+│   ├── privacy_modes_schema.json
 │   ├── schema_suggestion_demo.csv
 │   ├── schema_suggestion_expected.json
 │   ├── unmatched_frequency_demo.csv
@@ -738,6 +805,8 @@ data-cleaning-toolkit/
 │   ├── demo_schema_suggestion.json
 │   ├── mapping_coverage_clean.csv
 │   ├── mapping_coverage_report.json
+│   ├── privacy_modes_clean.csv
+│   ├── privacy_modes_report.json
 │   ├── unmatched_frequency_clean.csv
 │   ├── unmatched_frequency_report.json
 │   ├── value_mapping_clean.csv
@@ -765,9 +834,9 @@ data-cleaning-toolkit/
 ## Roadmap
 
 Possible later improvements include configurable delimiters, streaming
-processing, richer reviewed conditions, privacy-preserving frequency modes,
-and JSON Lines support. They remain outside version 0.7.0 so unmatched-value
-summaries stay bounded, deterministic, and easy to audit.
+processing, richer reviewed conditions, opt-in report-field suppression, and
+JSON Lines support. They remain outside version 0.8.0 so the privacy modes stay
+explicit, deterministic, and easy to audit.
 
 ## License
 

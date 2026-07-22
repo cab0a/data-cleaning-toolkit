@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.8.0] - 2026-07-22
+
+### Added
+
+- Per-column `unmatched_value_mode` with `raw`, `redacted`, and `disabled`
+  policies
+- Ranked count output that omits source strings in redacted summaries
+- Disabled collection with explicit `null` distinct-value and truncation fields
+- Controlled three-mode evaluation artifacts and non-disclosure checks
+
+### Changed
+
+- Mapping coverage reports now identify the disclosure mode for each column
+- Documentation distinguishes frequency-summary protection from clean CSV and
+  row-level audit disclosure
+
 ## [0.7.0] - 2026-07-22
 
 ### Added

@@ -358,7 +358,9 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
     }
     mapping_mapped_by_column = dict.fromkeys(mapping_observed_by_column, 0)
     mapping_unmatched_by_column = {
-        name: Counter() for name in mapping_observed_by_column
+        rule.name: Counter()
+        for rule in schema.columns
+        if rule.value_mapping and rule.unmatched_value_mode != "disabled"
     }
 
     for row in table.rows:
@@ -380,7 +382,9 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
             if mapping_source is not None:
                 mapping_observed_by_column[rule.name] += 1
                 if not mapped:
-                    mapping_unmatched_by_column[rule.name][mapping_source] += 1
+                    unmatched_counts = mapping_unmatched_by_column.get(rule.name)
+                    if unmatched_counts is not None:
+                        unmatched_counts[mapping_source] += 1
             if value != raw:
                 transformed_cells += 1
 
@@ -460,6 +464,35 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
 
         output_rows.append({header: normalized.get(header, "") for header in headers})
 
+    mapping_coverage: list[MappingCoverage] = []
+    for rule in schema.columns:
+        if not rule.value_mapping:
+            continue
+        unmatched_counts = mapping_unmatched_by_column.get(rule.name)
+        if unmatched_counts is None:
+            distinct_unmatched_values = None
+            frequencies: tuple[tuple[str | None, int], ...] = ()
+        else:
+            sorted_frequencies = sorted(
+                unmatched_counts.items(),
+                key=lambda item: (-item[1], item[0]),
+            )[:UNMATCHED_VALUE_LIMIT]
+            distinct_unmatched_values = len(unmatched_counts)
+            if rule.unmatched_value_mode == "redacted":
+                frequencies = tuple((None, count) for _, count in sorted_frequencies)
+            else:
+                frequencies = tuple(sorted_frequencies)
+        mapping_coverage.append(
+            MappingCoverage(
+                column=rule.name,
+                observed_non_empty_cells=mapping_observed_by_column[rule.name],
+                mapped_cells=mapping_mapped_by_column[rule.name],
+                unmatched_value_mode=rule.unmatched_value_mode,
+                distinct_unmatched_values=distinct_unmatched_values,
+                unmatched_value_frequencies=frequencies,
+            )
+        )
+
     return CleaningResult(
         headers=headers,
         rows=output_rows,
@@ -469,23 +502,6 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
         duplicate_rows_removed=duplicate_rows_removed,
         mapped_cells=mapped_cells,
         transformed_cells=transformed_cells,
-        mapping_coverage=[
-            MappingCoverage(
-                column=rule.name,
-                observed_non_empty_cells=mapping_observed_by_column[rule.name],
-                mapped_cells=mapping_mapped_by_column[rule.name],
-                distinct_unmatched_values=len(
-                    mapping_unmatched_by_column[rule.name]
-                ),
-                unmatched_value_frequencies=tuple(
-                    sorted(
-                        mapping_unmatched_by_column[rule.name].items(),
-                        key=lambda item: (-item[1], item[0]),
-                    )[:UNMATCHED_VALUE_LIMIT]
-                ),
-            )
-            for rule in schema.columns
-            if rule.value_mapping
-        ],
+        mapping_coverage=mapping_coverage,
         issues=issues,
     )

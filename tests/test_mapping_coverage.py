@@ -26,6 +26,7 @@ def test_controlled_mapping_coverage_uses_pre_mapping_normalized_values() -> Non
             "mapped_cells": 3,
             "unmapped_cells": 3,
             "coverage_rate": 0.5,
+            "unmatched_value_mode": "raw",
             "distinct_unmatched_values": 3,
             "unmatched_value_frequencies": [
                 {"value": "Japan", "count": 1},
@@ -40,6 +41,7 @@ def test_controlled_mapping_coverage_uses_pre_mapping_normalized_values() -> Non
             "mapped_cells": 6,
             "unmapped_cells": 0,
             "coverage_rate": 1.0,
+            "unmatched_value_mode": "raw",
             "distinct_unmatched_values": 0,
             "unmatched_value_frequencies": [],
             "unmatched_values_truncated": False,
@@ -50,6 +52,7 @@ def test_controlled_mapping_coverage_uses_pre_mapping_normalized_values() -> Non
             "mapped_cells": 0,
             "unmapped_cells": 0,
             "coverage_rate": None,
+            "unmatched_value_mode": "raw",
             "distinct_unmatched_values": 0,
             "unmatched_value_frequencies": [],
             "unmatched_values_truncated": False,
@@ -116,3 +119,34 @@ def test_unmatched_value_frequencies_are_limited_and_stably_sorted(
         (f"value-{index:02d}", 1) for index in range(10)
     )
     assert coverage.unmatched_values_truncated is True
+
+
+def test_privacy_modes_redact_or_disable_unmatched_values() -> None:
+    table = read_csv_table(ROOT / "examples" / "privacy_modes_demo.csv")
+    schema = load_schema(ROOT / "examples" / "privacy_modes_schema.json")
+
+    result = clean_table(table, schema)
+    raw, redacted, disabled = result.mapping_coverage
+
+    assert raw.unmatched_value_mode == "raw"
+    assert raw.unmatched_value_frequencies == (
+        ("alpha", 3),
+        ("beta", 2),
+        ("unknown", 2),
+    )
+    assert redacted.unmatched_value_mode == "redacted"
+    assert redacted.distinct_unmatched_values == 3
+    assert redacted.unmatched_value_frequencies == (
+        (None, 4),
+        (None, 2),
+        (None, 1),
+    )
+    assert redacted.as_dict()["unmatched_value_frequencies"] == [
+        {"rank": 1, "count": 4},
+        {"rank": 2, "count": 2},
+        {"rank": 3, "count": 1},
+    ]
+    assert disabled.unmatched_value_mode == "disabled"
+    assert disabled.distinct_unmatched_values is None
+    assert disabled.unmatched_value_frequencies == ()
+    assert disabled.unmatched_values_truncated is None

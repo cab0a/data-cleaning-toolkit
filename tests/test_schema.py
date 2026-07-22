@@ -31,6 +31,27 @@ def test_schema_loads_ordered_column_rules() -> None:
     assert schema.invalid_rows == "keep"
     assert schema.deduplicate_by == ("id",)
     assert schema.columns[1].value_mapping == (("enabled", "yes"),)
+    assert schema.columns[1].unmatched_value_mode == "raw"
+
+
+def test_schema_loads_unmatched_value_privacy_modes() -> None:
+    schema = schema_from_mapping(
+        {
+            "columns": {
+                "public_code": {
+                    "value_mapping": {"legacy": "canonical"},
+                    "unmatched_value_mode": "redacted",
+                },
+                "restricted_code": {
+                    "value_mapping": {"old": "new"},
+                    "unmatched_value_mode": "disabled",
+                },
+            }
+        }
+    )
+
+    assert schema.columns[0].unmatched_value_mode == "redacted"
+    assert schema.columns[1].unmatched_value_mode == "disabled"
 
 
 def test_schema_loads_cross_column_rules() -> None:
@@ -139,6 +160,25 @@ def test_schema_loads_conditional_presence_rules() -> None:
                 }
             },
             "surrounding whitespace",
+        ),
+        (
+            {
+                "columns": {
+                    "country": {
+                        "value_mapping": {"JP": "Japan"},
+                        "unmatched_value_mode": "hashed",
+                    }
+                }
+            },
+            "must be raw, redacted, or disabled",
+        ),
+        (
+            {
+                "columns": {
+                    "country": {"unmatched_value_mode": "redacted"}
+                }
+            },
+            "only valid when value_mapping is configured",
         ),
     ],
 )

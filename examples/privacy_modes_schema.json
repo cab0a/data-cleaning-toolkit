@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "unknown_columns": "error",
+  "invalid_rows": "drop",
+  "columns": {
+    "record_id": {
+      "type": "integer",
+      "required": true
+    },
+    "raw_category": {
+      "type": "string",
+      "strip": true,
+      "value_mapping": {
+        "A": "alpha"
+      },
+      "unmatched_value_mode": "raw"
+    },
+    "redacted_category": {
+      "type": "string",
+      "strip": true,
+      "value_mapping": {
+        "X": "x"
+      },
+      "unmatched_value_mode": "redacted"
+    },
+    "disabled_category": {
+      "type": "string",
+      "strip": true,
+      "value_mapping": {
+        "Y": "y"
+      },
+      "unmatched_value_mode": "disabled"
+    }
+  }
+}

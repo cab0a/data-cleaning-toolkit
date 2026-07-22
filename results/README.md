@@ -1,6 +1,6 @@
 # Reference Results
 
-These files are deterministic outputs from seven synthetic, non-sensitive
+These files are deterministic outputs from eight synthetic, non-sensitive
 examples:
 
 - `demo_inspection.json`, `demo_clean.csv`, and
@@ -28,6 +28,9 @@ examples:
   from the controlled repeated unmatched values in
   `examples/unmatched_frequency_demo.csv`, using
   `examples/unmatched_frequency_schema.json`.
+- `privacy_modes_clean.csv` and `privacy_modes_report.json` compare raw,
+  redacted, and disabled frequency disclosure using
+  `examples/privacy_modes_demo.csv` and `examples/privacy_modes_schema.json`.
 
 Regenerate them from the repository root with:
 
@@ -43,6 +46,7 @@ failures. The conditional-presence sample returns 1 because it contains
 deliberately missing dependent values. The mapping-coverage sample returns 1
 because it contains one deliberately unknown value. The unmatched-frequency
 sample returns 1 because it contains four deliberately unknown values. The
+privacy-mode sample returns 0 because it contains no validation errors. The
 wrapper accepts those documented results and exits successfully after writing
 all artifacts and validating the controlled summaries.
 
@@ -78,3 +82,10 @@ The unmatched-frequency check verifies descending counts of four for
 canonical values, while `unknown` is deliberately invalid. This demonstrates
 frequency ordering and the need for domain review, not automatic mapping
 recommendations.
+
+The privacy-mode check verifies identical mapping coverage across three
+columns while varying disclosure. Raw mode preserves values, redacted mode
+retains ranked counts of 4, 2, and 1 without source strings, and disabled mode
+retains no distinct-value or frequency detail. The clean CSV still contains
+non-mapped values, demonstrating that these modes protect frequency summaries
+rather than anonymizing every output artifact.

@@ -1,0 +1,117 @@
+{
+  "report_version": 1,
+  "source": "examples/privacy_modes_demo.csv",
+  "source_sha256": "0b2ee53dfb56cfa6c6c1fe905ef3b5b171d667a8f9b934651866ce6ad3ee71e6",
+  "schema": "examples/privacy_modes_schema.json",
+  "schema_version": 1,
+  "schema_sha256": "6e005608fd76ddbe247c0b8513dcc39a06f6c128daa7db848e6a5722368ea09c",
+  "output": "results/privacy_modes_clean.csv",
+  "output_sha256": "258106a2f00f06431e244f7018cf5b4d92e7c91dfeabf0ceff9d135f0f1d1e6b",
+  "input_rows": 8,
+  "output_rows": 8,
+  "invalid_rows": 0,
+  "dropped_invalid_rows": 0,
+  "duplicate_rows_removed": 0,
+  "mapped_cells": 3,
+  "mapping_coverage": {
+    "observed_non_empty_cells": 24,
+    "mapped_cells": 3,
+    "unmapped_cells": 21,
+    "coverage_rate": 0.125,
+    "columns": [
+      {
+        "column": "raw_category",
+        "observed_non_empty_cells": 8,
+        "mapped_cells": 1,
+        "unmapped_cells": 7,
+        "coverage_rate": 0.125,
+        "unmatched_value_mode": "raw",
+        "distinct_unmatched_values": 3,
+        "unmatched_value_frequencies": [
+          {
+            "value": "alpha",
+            "count": 3
+          },
+          {
+            "value": "beta",
+            "count": 2
+          },
+          {
+            "value": "unknown",
+            "count": 2
+          }
+        ],
+        "unmatched_values_truncated": false
+      },
+      {
+        "column": "redacted_category",
+        "observed_non_empty_cells": 8,
+        "mapped_cells": 1,
+        "unmapped_cells": 7,
+        "coverage_rate": 0.125,
+        "unmatched_value_mode": "redacted",
+        "distinct_unmatched_values": 3,
+        "unmatched_value_frequencies": [
+          {
+            "rank": 1,
+            "count": 4
+          },
+          {
+            "rank": 2,
+            "count": 2
+          },
+          {
+            "rank": 3,
+            "count": 1
+          }
+        ],
+        "unmatched_values_truncated": false
+      },
+      {
+        "column": "disabled_category",
+        "observed_non_empty_cells": 8,
+        "mapped_cells": 1,
+        "unmapped_cells": 7,
+        "coverage_rate": 0.125,
+        "unmatched_value_mode": "disabled",
+        "distinct_unmatched_values": null,
+        "unmatched_value_frequencies": [],
+        "unmatched_values_truncated": null
+      }
+    ]
+  },
+  "transformed_cells": 3,
+  "cross_column_failures": 0,
+  "conditional_presence_failures": 0,
+  "error_count": 0,
+  "warning_count": 0,
+  "issues_by_code": {
+    "VALUE_MAPPED": 3
+  },
+  "issues": [
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'alpha'",
+      "row": 2,
+      "column": "raw_category",
+      "value": "A"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'x'",
+      "row": 2,
+      "column": "redacted_category",
+      "value": "X"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'y'",
+      "row": 2,
+      "column": "disabled_category",
+      "value": "Y"
+    }
+  ]
+}

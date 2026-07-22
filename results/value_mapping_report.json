@@ -25,6 +25,7 @@
         "mapped_cells": 5,
         "unmapped_cells": 2,
         "coverage_rate": 0.714286,
+        "unmatched_value_mode": "raw",
         "distinct_unmatched_values": 2,
         "unmatched_value_frequencies": [
           {
@@ -44,6 +45,7 @@
         "mapped_cells": 4,
         "unmapped_cells": 3,
         "coverage_rate": 0.571429,
+        "unmatched_value_mode": "raw",
         "distinct_unmatched_values": 3,
         "unmatched_value_frequencies": [
           {
@@ -67,6 +69,7 @@
         "mapped_cells": 4,
         "unmapped_cells": 3,
         "coverage_rate": 0.571429,
+        "unmatched_value_mode": "raw",
         "distinct_unmatched_values": 2,
         "unmatched_value_frequencies": [
           {

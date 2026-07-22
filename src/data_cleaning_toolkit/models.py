@@ -54,8 +54,9 @@ class MappingCoverage:
     column: str
     observed_non_empty_cells: int
     mapped_cells: int
-    distinct_unmatched_values: int = 0
-    unmatched_value_frequencies: tuple[tuple[str, int], ...] = ()
+    distinct_unmatched_values: int | None = 0
+    unmatched_value_frequencies: tuple[tuple[str | None, int], ...] = ()
+    unmatched_value_mode: str = "raw"
 
     @property
     def unmapped_cells(self) -> int:
@@ -68,21 +69,29 @@ class MappingCoverage:
         return round(self.mapped_cells / self.observed_non_empty_cells, 6)
 
     @property
-    def unmatched_values_truncated(self) -> bool:
+    def unmatched_values_truncated(self) -> bool | None:
+        if self.distinct_unmatched_values is None:
+            return None
         return self.distinct_unmatched_values > len(self.unmatched_value_frequencies)
 
     def as_dict(self) -> dict[str, Any]:
+        frequencies: list[dict[str, Any]] = []
+        for rank, (value, count) in enumerate(
+            self.unmatched_value_frequencies, start=1
+        ):
+            if value is None:
+                frequencies.append({"rank": rank, "count": count})
+            else:
+                frequencies.append({"value": value, "count": count})
         return {
             "column": self.column,
             "observed_non_empty_cells": self.observed_non_empty_cells,
             "mapped_cells": self.mapped_cells,
             "unmapped_cells": self.unmapped_cells,
             "coverage_rate": self.coverage_rate,
+            "unmatched_value_mode": self.unmatched_value_mode,
             "distinct_unmatched_values": self.distinct_unmatched_values,
-            "unmatched_value_frequencies": [
-                {"value": value, "count": count}
-                for value, count in self.unmatched_value_frequencies
-            ],
+            "unmatched_value_frequencies": frequencies,
             "unmatched_values_truncated": self.unmatched_values_truncated,
         }
 
