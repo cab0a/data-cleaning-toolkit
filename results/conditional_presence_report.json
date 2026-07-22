@@ -13,6 +13,13 @@
   "dropped_invalid_rows": 3,
   "duplicate_rows_removed": 0,
   "mapped_cells": 0,
+  "mapping_coverage": {
+    "observed_non_empty_cells": 0,
+    "mapped_cells": 0,
+    "unmapped_cells": 0,
+    "coverage_rate": null,
+    "columns": []
+  },
   "transformed_cells": 2,
   "cross_column_failures": 0,
   "conditional_presence_failures": 4,

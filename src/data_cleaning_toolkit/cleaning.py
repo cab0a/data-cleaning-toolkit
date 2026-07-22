@@ -8,7 +8,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from .models import CleaningResult, CsvTable, DataIssue
+from .models import CleaningResult, CsvTable, DataIssue, MappingCoverage
 from .schema import (
     CleaningSchema,
     ColumnRule,
@@ -63,10 +63,11 @@ def _normalize_value(
     rule: ColumnRule,
     *,
     row_number: int,
-) -> tuple[str, list[DataIssue], bool]:
+) -> tuple[str, list[DataIssue], bool, bool]:
     value = raw.strip() if rule.strip else raw
     if value in rule.null_values:
         value = ""
+    mapping_observed = bool(rule.value_mapping and value != "")
     if value == "":
         if rule.required:
             return value, [
@@ -77,8 +78,8 @@ def _normalize_value(
                     column=rule.name,
                     value=raw,
                 )
-            ], False
-        return value, [], False
+            ], False, mapping_observed
+        return value, [], False, mapping_observed
 
     issues: list[DataIssue] = []
     mapped = False
@@ -226,7 +227,7 @@ def _normalize_value(
                     value=raw,
                 )
             )
-    return value, issues, mapped
+    return value, issues, mapped, mapping_observed
 
 
 def _output_headers(table: CsvTable, schema: CleaningSchema) -> list[str]:
@@ -346,6 +347,10 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
     duplicate_rows_removed = 0
     mapped_cells = 0
     transformed_cells = 0
+    mapping_observed_by_column = {
+        rule.name: 0 for rule in schema.columns if rule.value_mapping
+    }
+    mapping_mapped_by_column = dict.fromkeys(mapping_observed_by_column, 0)
 
     for row in table.rows:
         normalized = dict(row.values)
@@ -353,7 +358,7 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
 
         for rule in schema.columns:
             raw = row.values.get(rule.name, "")
-            value, value_issues, mapped = _normalize_value(
+            value, value_issues, mapped, mapping_observed = _normalize_value(
                 raw,
                 rule,
                 row_number=row.row_number,
@@ -362,6 +367,9 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
             row_issues.extend(value_issues)
             if mapped:
                 mapped_cells += 1
+                mapping_mapped_by_column[rule.name] += 1
+            if mapping_observed:
+                mapping_observed_by_column[rule.name] += 1
             if value != raw:
                 transformed_cells += 1
 
@@ -450,5 +458,14 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
         duplicate_rows_removed=duplicate_rows_removed,
         mapped_cells=mapped_cells,
         transformed_cells=transformed_cells,
+        mapping_coverage=[
+            MappingCoverage(
+                column=rule.name,
+                observed_non_empty_cells=mapping_observed_by_column[rule.name],
+                mapped_cells=mapping_mapped_by_column[rule.name],
+            )
+            for rule in schema.columns
+            if rule.value_mapping
+        ],
         issues=issues,
     )

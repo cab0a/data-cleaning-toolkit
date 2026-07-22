@@ -13,6 +13,35 @@
   "dropped_invalid_rows": 1,
   "duplicate_rows_removed": 0,
   "mapped_cells": 13,
+  "mapping_coverage": {
+    "observed_non_empty_cells": 21,
+    "mapped_cells": 13,
+    "unmapped_cells": 8,
+    "coverage_rate": 0.619048,
+    "columns": [
+      {
+        "column": "country",
+        "observed_non_empty_cells": 7,
+        "mapped_cells": 5,
+        "unmapped_cells": 2,
+        "coverage_rate": 0.714286
+      },
+      {
+        "column": "membership",
+        "observed_non_empty_cells": 7,
+        "mapped_cells": 4,
+        "unmapped_cells": 3,
+        "coverage_rate": 0.571429
+      },
+      {
+        "column": "active",
+        "observed_non_empty_cells": 7,
+        "mapped_cells": 4,
+        "unmapped_cells": 3,
+        "coverage_rate": 0.571429
+      }
+    ]
+  },
   "transformed_cells": 14,
   "cross_column_failures": 0,
   "conditional_presence_failures": 0,

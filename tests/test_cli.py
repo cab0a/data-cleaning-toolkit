@@ -62,6 +62,13 @@ def test_clean_writes_csv_and_audit_report_with_documented_exit_code(
     assert audit["invalid_rows"] == 3
     assert audit["duplicate_rows_removed"] == 1
     assert audit["mapped_cells"] == 0
+    assert audit["mapping_coverage"] == {
+        "observed_non_empty_cells": 0,
+        "mapped_cells": 0,
+        "unmapped_cells": 0,
+        "coverage_rate": None,
+        "columns": [],
+    }
     assert audit["cross_column_failures"] == 0
     assert audit["conditional_presence_failures"] == 0
     assert audit["schema_version"] == 1
@@ -98,9 +105,41 @@ def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
     assert len(rows) == 6
     audit = json.loads(report.read_text(encoding="utf-8"))
     assert audit["mapped_cells"] == 13
+    assert audit["mapping_coverage"] == {
+        "observed_non_empty_cells": 21,
+        "mapped_cells": 13,
+        "unmapped_cells": 8,
+        "coverage_rate": 0.619048,
+        "columns": [
+            {
+                "column": "country",
+                "observed_non_empty_cells": 7,
+                "mapped_cells": 5,
+                "unmapped_cells": 2,
+                "coverage_rate": 0.714286,
+            },
+            {
+                "column": "membership",
+                "observed_non_empty_cells": 7,
+                "mapped_cells": 4,
+                "unmapped_cells": 3,
+                "coverage_rate": 0.571429,
+            },
+            {
+                "column": "active",
+                "observed_non_empty_cells": 7,
+                "mapped_cells": 4,
+                "unmapped_cells": 3,
+                "coverage_rate": 0.571429,
+            },
+        ],
+    }
     assert audit["issues_by_code"]["VALUE_MAPPED"] == 13
     assert audit["error_count"] == 3
-    assert "Mapped cells: 13" in capsys.readouterr().out
+    output_text = capsys.readouterr().out
+    assert "Mapped cells: 13" in output_text
+    assert "country: 5/7 (71.4%)" in output_text
+    assert "Overall: 13/21 (61.9%)" in output_text
 
 
 def test_clean_reports_cross_column_failures(capsys, tmp_path: Path) -> None:

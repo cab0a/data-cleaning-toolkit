@@ -40,6 +40,10 @@ def main() -> int:
     presence_schema = Path("examples/conditional_presence_schema.json")
     presence_cleaned = args.output_dir / "conditional_presence_clean.csv"
     presence_audit = args.output_dir / "conditional_presence_report.json"
+    coverage_source = Path("examples/mapping_coverage_demo.csv")
+    coverage_schema = Path("examples/mapping_coverage_schema.json")
+    coverage_cleaned = args.output_dir / "mapping_coverage_clean.csv"
+    coverage_audit = args.output_dir / "mapping_coverage_report.json"
 
     inspect_status = toolkit_main(
         ["inspect", str(source), "--output", str(inspection)]
@@ -100,6 +104,18 @@ def main() -> int:
             str(presence_audit),
         ]
     )
+    coverage_status = toolkit_main(
+        [
+            "clean",
+            str(coverage_source),
+            "--schema",
+            str(coverage_schema),
+            "--output",
+            str(coverage_cleaned),
+            "--report",
+            str(coverage_audit),
+        ]
+    )
     if inspect_status != 1:
         raise SystemExit(
             f"Expected inspect status 1 for the malformed demo row, got {inspect_status}"
@@ -127,6 +143,11 @@ def main() -> int:
         raise SystemExit(
             "Expected clean status 1 for the controlled conditional presence "
             f"failures, got {presence_status}"
+        )
+    if coverage_status != 1:
+        raise SystemExit(
+            "Expected clean status 1 for the controlled unmapped value, "
+            f"got {coverage_status}"
         )
 
     report = json.loads(suggestion.read_text(encoding="utf-8"))
@@ -195,6 +216,38 @@ def main() -> int:
         raise SystemExit(
             "Conditional presence evaluation mismatch: expected "
             f"{expected_presence_summary}, got {observed_presence_summary}"
+        )
+
+    coverage_report = json.loads(coverage_audit.read_text(encoding="utf-8"))
+    expected_coverage_summary = {
+        "input_rows": 7,
+        "output_rows": 6,
+        "invalid_rows": 1,
+        "mapped_cells": 9,
+        "error_count": 1,
+    }
+    observed_coverage_summary = {
+        key: coverage_report[key] for key in expected_coverage_summary
+    }
+    if observed_coverage_summary != expected_coverage_summary:
+        raise SystemExit(
+            "Mapping coverage evaluation mismatch: expected "
+            f"{expected_coverage_summary}, got {observed_coverage_summary}"
+        )
+    expected_coverage = {
+        "observed_non_empty_cells": 12,
+        "mapped_cells": 9,
+        "unmapped_cells": 3,
+        "coverage_rate": 0.75,
+    }
+    observed_coverage = {
+        key: coverage_report["mapping_coverage"][key]
+        for key in expected_coverage
+    }
+    if observed_coverage != expected_coverage:
+        raise SystemExit(
+            "Mapping coverage totals mismatch: expected "
+            f"{expected_coverage}, got {observed_coverage}"
         )
     return 0
 

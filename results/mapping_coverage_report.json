@@ -1,0 +1,136 @@
+{
+  "report_version": 1,
+  "source": "examples/mapping_coverage_demo.csv",
+  "source_sha256": "837dcf6e92f49587ebc01cc6bcedcc8a0bebe6f6a190cac46c7eb0aac09c314b",
+  "schema": "examples/mapping_coverage_schema.json",
+  "schema_version": 1,
+  "schema_sha256": "827272e0a0a1ca4f95096444b0a5ce036816403ed0bb318a434ea354677c77bd",
+  "output": "results/mapping_coverage_clean.csv",
+  "output_sha256": "e24be7b5d56453dc855adee8715e3d61d89054d592b09235aa9738c7d72bbb49",
+  "input_rows": 7,
+  "output_rows": 6,
+  "invalid_rows": 1,
+  "dropped_invalid_rows": 1,
+  "duplicate_rows_removed": 0,
+  "mapped_cells": 9,
+  "mapping_coverage": {
+    "observed_non_empty_cells": 12,
+    "mapped_cells": 9,
+    "unmapped_cells": 3,
+    "coverage_rate": 0.75,
+    "columns": [
+      {
+        "column": "country",
+        "observed_non_empty_cells": 6,
+        "mapped_cells": 3,
+        "unmapped_cells": 3,
+        "coverage_rate": 0.5
+      },
+      {
+        "column": "priority",
+        "observed_non_empty_cells": 6,
+        "mapped_cells": 6,
+        "unmapped_cells": 0,
+        "coverage_rate": 1.0
+      },
+      {
+        "column": "unused_code",
+        "observed_non_empty_cells": 0,
+        "mapped_cells": 0,
+        "unmapped_cells": 0,
+        "coverage_rate": null
+      }
+    ]
+  },
+  "transformed_cells": 11,
+  "cross_column_failures": 0,
+  "conditional_presence_failures": 0,
+  "error_count": 1,
+  "warning_count": 0,
+  "issues_by_code": {
+    "VALUE_MAPPED": 9,
+    "VALUE_NOT_ALLOWED": 1
+  },
+  "issues": [
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'Japan'",
+      "row": 2,
+      "column": "country",
+      "value": "JP"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'high'",
+      "row": 2,
+      "column": "priority",
+      "value": "H"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'Japan'",
+      "row": 3,
+      "column": "country",
+      "value": "JPN"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'medium'",
+      "row": 3,
+      "column": "priority",
+      "value": "M"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'low'",
+      "row": 4,
+      "column": "priority",
+      "value": "L"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'United States'",
+      "row": 5,
+      "column": "country",
+      "value": "US"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'high'",
+      "row": 5,
+      "column": "priority",
+      "value": "H"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'medium'",
+      "row": 6,
+      "column": "priority",
+      "value": "M"
+    },
+    {
+      "severity": "error",
+      "code": "VALUE_NOT_ALLOWED",
+      "message": "Value is not in the configured allowed values",
+      "row": 7,
+      "column": "country",
+      "value": "ZZ"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'low'",
+      "row": 7,
+      "column": "priority",
+      "value": "L"
+    }
+  ]
+}

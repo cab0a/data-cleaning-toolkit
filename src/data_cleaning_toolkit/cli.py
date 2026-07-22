@@ -35,6 +35,10 @@ def _default_report_path(output: Path) -> Path:
     return output.with_name(output.name + ".report.json")
 
 
+def _coverage_percentage(rate: float | None) -> str:
+    return "n/a" if rate is None else f"{rate:.1%}"
+
+
 def _cmd_inspect(args: argparse.Namespace) -> int:
     source = Path(args.input)
     table = read_csv_table(source)
@@ -86,6 +90,23 @@ def _cmd_clean(args: argparse.Namespace) -> int:
     print(f"Invalid rows: {result.invalid_rows}")
     print(f"Duplicate rows removed: {result.duplicate_rows_removed}")
     print(f"Mapped cells: {result.mapped_cells}")
+    if result.mapping_coverage:
+        print("Mapping coverage:")
+        for coverage in result.mapping_coverage:
+            print(
+                f"  {coverage.column}: {coverage.mapped_cells}/"
+                f"{coverage.observed_non_empty_cells} "
+                f"({_coverage_percentage(coverage.coverage_rate)})"
+            )
+        total_observed = sum(
+            item.observed_non_empty_cells for item in result.mapping_coverage
+        )
+        total_mapped = sum(item.mapped_cells for item in result.mapping_coverage)
+        total_rate = total_mapped / total_observed if total_observed else None
+        print(
+            f"  Overall: {total_mapped}/{total_observed} "
+            f"({_coverage_percentage(total_rate)})"
+        )
     print(f"Transformed cells: {result.transformed_cells}")
     print(f"Cross-column failures: {result.cross_column_failure_count}")
     print(

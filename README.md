@@ -55,6 +55,7 @@ evidence alongside the cleaned data.
 - Applies opt-in whitespace trimming and string case normalization
 - Maps reviewed source values to explicit canonical values using exact,
   case-sensitive rules
+- Summarizes exact mapping matches by column and across the full input
 - Canonicalizes integers, finite decimal values, booleans, and dates
 - Validates required values, allowed values, regular expressions, and numeric
   minimum and maximum bounds
@@ -133,13 +134,24 @@ data-cleaning-toolkit clean examples/conditional_presence_demo.csv \
   --report output/conditional_presence_report.json
 ```
 
+Run the controlled mapping-coverage example:
+
+```bash
+data-cleaning-toolkit clean examples/mapping_coverage_demo.csv \
+  --schema examples/mapping_coverage_schema.json \
+  --output output/mapping_coverage_clean.csv \
+  --report output/mapping_coverage_report.json
+```
+
 The dirty-data demo is intentionally invalid, so `inspect` and `clean` write
 their outputs and return exit code 1. The value-mapping example also returns 1
 because its final row contains deliberately unmapped values. The cross-column
 example returns 1 because it includes deliberate relationship violations. The
 conditional-presence example returns 1 because it includes deliberately
-missing dependent values. The controlled `suggest-schema` example returns 0.
-These semantics make the CLI usable as a data-quality gate in scripts and CI.
+missing dependent values. The mapping-coverage example returns 1 because it
+includes one deliberately unknown value. The controlled `suggest-schema`
+example returns 0. These semantics make the CLI usable as a data-quality gate
+in scripts and CI.
 
 Regenerate the committed reference artifacts with:
 
@@ -221,6 +233,28 @@ row-level mapping and rejection evidence is in
 [`results/value_mapping_report.json`](results/value_mapping_report.json).
 This controlled result demonstrates behavior and reproducibility; it does not
 claim that the configured vocabulary is complete for other datasets.
+
+### Mapping Coverage Result
+
+The controlled coverage sample contains one partially matched column, one
+fully matched column, and one configured column without observed values. The
+CLI makes the exact-match ratios visible without changing validation behavior:
+
+```text
+Mapping coverage:
+  country: 3/6 (50.0%)
+  priority: 6/6 (100.0%)
+  unused_code: 0/0 (n/a)
+  Overall: 9/12 (75.0%)
+```
+
+The `country` denominator includes two already-canonical values and one
+unknown value. This demonstrates why an unmatched cell is not automatically
+an error and why the percentage is not a data-quality score. The clean CSV is
+committed as
+[`results/mapping_coverage_clean.csv`](results/mapping_coverage_clean.csv),
+and the column and overall summaries are in
+[`results/mapping_coverage_report.json`](results/mapping_coverage_report.json).
 
 ### Cross-Column Validation Result
 
@@ -420,6 +454,28 @@ unregistered values. Blank optional values remain blank. Integer and decimal
 parsing is locale-independent: thousands separators and localized decimal
 symbols are not silently interpreted.
 
+### Mapping Coverage
+
+The `clean` command summarizes exact `value_mapping` matches for every column
+that defines at least one mapping entry. Coverage uses values after configured
+null handling and trimming but before value mapping, case conversion, type
+conversion, and validation.
+
+For each configured column, the report contains:
+
+- `observed_non_empty_cells`: non-empty source cells eligible for an exact
+  mapping match
+- `mapped_cells`: cells that matched a configured source key
+- `unmapped_cells`: observed non-empty cells that did not match a source key
+- `coverage_rate`: `mapped_cells / observed_non_empty_cells`, rounded to six
+  decimal places, or `null` when no non-empty cells were observed
+
+The report also includes the same counts across all mapping columns. Counts
+cover all input rows, including rows later dropped by validation or
+deduplication, because the summary describes the supplied data rather than
+only the accepted output. The CLI renders the rate as a percentage and uses
+`n/a` for a zero denominator.
+
 ### Cross-Column Rules
 
 Each rule has a unique `name`, a `left` column, an `operator`, and a `right`
@@ -469,7 +525,8 @@ Each run follows a fixed sequence:
 1. Read the UTF-8 CSV and verify that headers are non-empty and unique.
 2. Record rows whose field count differs from the header.
 3. Apply configured null handling and whitespace trimming.
-4. Apply exact value mappings and record each match as `VALUE_MAPPED`.
+4. Count non-empty mapping candidates, apply exact value mappings, and record
+   each match as `VALUE_MAPPED`.
 5. Apply case, type, and date normalization.
 6. Apply required, allowed-value, pattern, and numeric-bound validation.
 7. Apply conditional-presence rules to normalized values.
@@ -493,6 +550,7 @@ The cleaning report includes:
 - Invalid and dropped-invalid row counts
 - Duplicate rows removed
 - Number of cells matched by explicit value mappings
+- Mapping coverage counts and rates by configured column and overall
 - Number of cells changed by configured normalization
 - Number of failed cross-column rules
 - Number of failed conditional-presence rules
@@ -532,6 +590,8 @@ The test suite covers:
 - Required values, patterns, allowed values, and numeric bounds
 - Exact, case-sensitive value mapping before type conversion and validation
 - Mapping counts and row-level `VALUE_MAPPED` audit evidence
+- Mapping coverage after null handling and trimming, including empty columns,
+  invalid rows, per-column rates, overall rates, and CLI reporting
 - Equality checks across matching normalized types and ordering checks for
   integer, decimal, and date columns
 - Cross-column schema rejection, empty-value behavior, error de-duplication,
@@ -551,7 +611,7 @@ artifacts on Python 3.10 through 3.14.
 
 ## Limitations
 
-- Version 0.5.0 supports comma-delimited UTF-8 CSV only.
+- Version 0.6.0 supports comma-delimited UTF-8 CSV only.
 - Files are processed in memory and are intended for small and moderate local
   datasets, not distributed or out-of-core workloads.
 - The clean CSV and JSON report are replaced atomically as individual files,
@@ -567,6 +627,11 @@ artifacts on Python 3.10 through 3.14.
 - Value mappings are exact and case-sensitive. They do not provide fuzzy
   matching, synonym discovery, or mapping suggestions; the configured
   vocabulary must be reviewed for each dataset.
+- Mapping coverage is an exact-match rate, not a quality score. Unmapped cells
+  may be valid canonical values, unknown values, or values handled by later
+  normalization and validation rules.
+- Coverage summaries contain counts only. They do not list or rank unmatched
+  source values and do not recommend new mapping entries.
 - Cross-column rules compare two columns of the same type. Arithmetic
   expressions, multi-column formulas, and cross-row relationships remain
   outside the current scope.
@@ -603,6 +668,8 @@ data-cleaning-toolkit/
 │   ├── cross_column_demo.csv
 │   ├── cross_column_schema.json
 │   ├── demo_dirty.csv
+│   ├── mapping_coverage_demo.csv
+│   ├── mapping_coverage_schema.json
 │   ├── schema_suggestion_demo.csv
 │   ├── schema_suggestion_expected.json
 │   ├── value_mapping_demo.csv
@@ -618,6 +685,8 @@ data-cleaning-toolkit/
 │   ├── demo_cleaning_report.json
 │   ├── demo_inspection.json
 │   ├── demo_schema_suggestion.json
+│   ├── mapping_coverage_clean.csv
+│   ├── mapping_coverage_report.json
 │   ├── value_mapping_clean.csv
 │   └── value_mapping_report.json
 ├── src/data_cleaning_toolkit/
@@ -643,9 +712,9 @@ data-cleaning-toolkit/
 ## Roadmap
 
 Possible later improvements include configurable delimiters, streaming
-processing, mapping coverage summaries, richer reviewed conditions, and JSON
-Lines support. They remain outside version 0.5.0 so conditional requirements
-stay narrow, deterministic, and easy to audit.
+processing, richer reviewed conditions, unmatched-value frequency summaries,
+and JSON Lines support. They remain outside version 0.6.0 so mapping coverage
+stays compact, deterministic, and safe to inspect.
 
 ## License
 

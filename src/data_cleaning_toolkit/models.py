@@ -46,6 +46,32 @@ class CsvTable:
     issues: list[DataIssue] = field(default_factory=list)
 
 
+@dataclass(frozen=True, slots=True)
+class MappingCoverage:
+    column: str
+    observed_non_empty_cells: int
+    mapped_cells: int
+
+    @property
+    def unmapped_cells(self) -> int:
+        return self.observed_non_empty_cells - self.mapped_cells
+
+    @property
+    def coverage_rate(self) -> float | None:
+        if self.observed_non_empty_cells == 0:
+            return None
+        return round(self.mapped_cells / self.observed_non_empty_cells, 6)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "column": self.column,
+            "observed_non_empty_cells": self.observed_non_empty_cells,
+            "mapped_cells": self.mapped_cells,
+            "unmapped_cells": self.unmapped_cells,
+            "coverage_rate": self.coverage_rate,
+        }
+
+
 @dataclass(slots=True)
 class CleaningResult:
     headers: list[str]
@@ -56,6 +82,7 @@ class CleaningResult:
     duplicate_rows_removed: int
     mapped_cells: int
     transformed_cells: int
+    mapping_coverage: list[MappingCoverage] = field(default_factory=list)
     issues: list[DataIssue] = field(default_factory=list)
 
     @property
@@ -91,6 +118,15 @@ class CleaningResult:
         output_sha256: str,
     ) -> dict[str, Any]:
         counts = Counter(issue.code for issue in self.issues)
+        coverage_observed = sum(
+            item.observed_non_empty_cells for item in self.mapping_coverage
+        )
+        coverage_mapped = sum(item.mapped_cells for item in self.mapping_coverage)
+        coverage_rate = (
+            round(coverage_mapped / coverage_observed, 6)
+            if coverage_observed
+            else None
+        )
         return {
             "report_version": 1,
             "source": source,
@@ -106,6 +142,13 @@ class CleaningResult:
             "dropped_invalid_rows": self.dropped_invalid_rows,
             "duplicate_rows_removed": self.duplicate_rows_removed,
             "mapped_cells": self.mapped_cells,
+            "mapping_coverage": {
+                "observed_non_empty_cells": coverage_observed,
+                "mapped_cells": coverage_mapped,
+                "unmapped_cells": coverage_observed - coverage_mapped,
+                "coverage_rate": coverage_rate,
+                "columns": [item.as_dict() for item in self.mapping_coverage],
+            },
             "transformed_cells": self.transformed_cells,
             "cross_column_failures": self.cross_column_failure_count,
             "conditional_presence_failures": (

@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.6.0] - 2026-07-22
+
+### Added
+
+- Per-column mapping coverage counts for observed, mapped, and unmapped cells
+- Overall mapping coverage totals and rates in JSON cleaning reports
+- Compact CLI percentages with explicit `n/a` handling for empty columns
+- Controlled partial, complete, and zero-denominator evaluation artifacts
+
+### Changed
+
+- Mapping coverage is measured after configured null handling and trimming and
+  includes all input rows, even when later validation drops a row
+- Expanded the reproducible demo workflow and test suite for per-column and
+  overall summaries
+
 ## [0.5.0] - 2026-07-22
 
 ### Added

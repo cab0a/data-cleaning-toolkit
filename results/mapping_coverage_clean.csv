@@ -1,0 +1,7 @@
+record_id,country,priority,unused_code
+1,Japan,high,
+2,Japan,medium,
+3,Japan,low,
+4,United States,high,
+5,United States,medium,
+7,,,
