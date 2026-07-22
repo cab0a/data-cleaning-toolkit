@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.0] - 2026-07-22
+
+### Added
+
+- Per-column unmatched source-value frequencies in mapping coverage summaries
+- Deterministic ordering by descending count and ascending value for ties
+- Distinct-value totals and explicit truncation metadata
+- JSON-escaped CLI display for unmatched values
+- Controlled repeated-value evaluation artifacts
+
+### Changed
+
+- Frequency summaries are limited to ten values per mapping column
+- Expanded the reproducible demo workflow and test suite for frequency order,
+  stable ties, truncation, and raw-value handling
+
 ## [0.6.0] - 2026-07-22
 
 ### Added

@@ -1,6 +1,6 @@
 # Reference Results
 
-These files are deterministic outputs from six synthetic, non-sensitive
+These files are deterministic outputs from seven synthetic, non-sensitive
 examples:
 
 - `demo_inspection.json`, `demo_clean.csv`, and
@@ -24,6 +24,10 @@ examples:
   the controlled partial, complete, and empty mapping cases in
   `examples/mapping_coverage_demo.csv`, using
   `examples/mapping_coverage_schema.json`.
+- `unmatched_frequency_clean.csv` and `unmatched_frequency_report.json` come
+  from the controlled repeated unmatched values in
+  `examples/unmatched_frequency_demo.csv`, using
+  `examples/unmatched_frequency_schema.json`.
 
 Regenerate them from the repository root with:
 
@@ -37,9 +41,10 @@ sample also returns 1 because its final row is deliberately invalid. The
 cross-column sample returns 1 because it contains deliberate relationship
 failures. The conditional-presence sample returns 1 because it contains
 deliberately missing dependent values. The mapping-coverage sample returns 1
-because it contains one deliberately unknown value. The wrapper accepts those
-documented results and exits successfully after writing all artifacts and
-validating the controlled summaries.
+because it contains one deliberately unknown value. The unmatched-frequency
+sample returns 1 because it contains four deliberately unknown values. The
+wrapper accepts those documented results and exits successfully after writing
+all artifacts and validating the controlled summaries.
 
 The schema-suggestion sample defines seven expected column types in
 `examples/schema_suggestion_expected.json`. The reproduction script verifies
@@ -67,3 +72,9 @@ country values, six matches across six observed priority values, and a
 configured mapping column with no observed values. The combined result is 9
 matches across 12 non-empty cells. It demonstrates deterministic counting and
 zero-denominator behavior, not mapping quality for other datasets.
+
+The unmatched-frequency check verifies descending counts of four for
+`unknown`, three for `alpha`, and two for `beta`. The latter two are valid
+canonical values, while `unknown` is deliberately invalid. This demonstrates
+frequency ordering and the need for domain review, not automatic mapping
+recommendations.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -98,6 +99,19 @@ def _cmd_clean(args: argparse.Namespace) -> int:
                 f"{coverage.observed_non_empty_cells} "
                 f"({_coverage_percentage(coverage.coverage_rate)})"
             )
+            if coverage.unmatched_value_frequencies:
+                print("    Unmatched values:")
+                for value, count in coverage.unmatched_value_frequencies:
+                    rendered = json.dumps(value, ensure_ascii=True)
+                    print(f"      {rendered}: {count}")
+                if coverage.unmatched_values_truncated:
+                    omitted = (
+                        coverage.distinct_unmatched_values
+                        - len(coverage.unmatched_value_frequencies)
+                    )
+                    print(
+                        f"      ... {omitted} additional distinct values omitted"
+                    )
         total_observed = sum(
             item.observed_non_empty_cells for item in result.mapping_coverage
         )

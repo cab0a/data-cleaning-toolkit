@@ -117,6 +117,12 @@ def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
                 "mapped_cells": 5,
                 "unmapped_cells": 2,
                 "coverage_rate": 0.714286,
+                "distinct_unmatched_values": 2,
+                "unmatched_value_frequencies": [
+                    {"value": "United States", "count": 1},
+                    {"value": "ZZ", "count": 1},
+                ],
+                "unmatched_values_truncated": False,
             },
             {
                 "column": "membership",
@@ -124,6 +130,13 @@ def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
                 "mapped_cells": 4,
                 "unmapped_cells": 3,
                 "coverage_rate": 0.571429,
+                "distinct_unmatched_values": 3,
+                "unmatched_value_frequencies": [
+                    {"value": "VIP", "count": 1},
+                    {"value": "premium", "count": 1},
+                    {"value": "standard", "count": 1},
+                ],
+                "unmatched_values_truncated": False,
             },
             {
                 "column": "active",
@@ -131,6 +144,12 @@ def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
                 "mapped_cells": 4,
                 "unmapped_cells": 3,
                 "coverage_rate": 0.571429,
+                "distinct_unmatched_values": 2,
+                "unmatched_value_frequencies": [
+                    {"value": "true", "count": 2},
+                    {"value": "unknown", "count": 1},
+                ],
+                "unmatched_values_truncated": False,
             },
         ],
     }
@@ -139,7 +158,43 @@ def test_clean_reports_explicit_value_mappings(capsys, tmp_path: Path) -> None:
     output_text = capsys.readouterr().out
     assert "Mapped cells: 13" in output_text
     assert "country: 5/7 (71.4%)" in output_text
+    assert '"true": 2' in output_text
+    assert '"unknown": 1' in output_text
     assert "Overall: 13/21 (61.9%)" in output_text
+
+
+def test_cli_escapes_unmatched_control_characters(
+    capsys,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "input.csv"
+    schema = tmp_path / "schema.json"
+    output = tmp_path / "clean.csv"
+    source.write_text("code\n\x1b[31m\n", encoding="utf-8")
+    schema.write_text(
+        json.dumps(
+            {
+                "columns": {
+                    "code": {"value_mapping": {"legacy": "canonical"}}
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    status = main(
+        [
+            "clean",
+            str(source),
+            "--schema",
+            str(schema),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert status == 0
+    assert '"\\u001b[31m": 1' in capsys.readouterr().out
 
 
 def test_clean_reports_cross_column_failures(capsys, tmp_path: Path) -> None:

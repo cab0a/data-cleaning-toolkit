@@ -24,21 +24,43 @@
         "observed_non_empty_cells": 6,
         "mapped_cells": 3,
         "unmapped_cells": 3,
-        "coverage_rate": 0.5
+        "coverage_rate": 0.5,
+        "distinct_unmatched_values": 3,
+        "unmatched_value_frequencies": [
+          {
+            "value": "Japan",
+            "count": 1
+          },
+          {
+            "value": "United States",
+            "count": 1
+          },
+          {
+            "value": "ZZ",
+            "count": 1
+          }
+        ],
+        "unmatched_values_truncated": false
       },
       {
         "column": "priority",
         "observed_non_empty_cells": 6,
         "mapped_cells": 6,
         "unmapped_cells": 0,
-        "coverage_rate": 1.0
+        "coverage_rate": 1.0,
+        "distinct_unmatched_values": 0,
+        "unmatched_value_frequencies": [],
+        "unmatched_values_truncated": false
       },
       {
         "column": "unused_code",
         "observed_non_empty_cells": 0,
         "mapped_cells": 0,
         "unmapped_cells": 0,
-        "coverage_rate": null
+        "coverage_rate": null,
+        "distinct_unmatched_values": 0,
+        "unmatched_value_frequencies": [],
+        "unmatched_values_truncated": false
       }
     ]
   },

@@ -1,0 +1,106 @@
+{
+  "report_version": 1,
+  "source": "examples/unmatched_frequency_demo.csv",
+  "source_sha256": "8f460c4469cd0cb84389052b2fa2b73f1a4812463289fbab4e6a7ab71cb29fe6",
+  "schema": "examples/unmatched_frequency_schema.json",
+  "schema_version": 1,
+  "schema_sha256": "4bcae19c295bcdfc81027a9734b9a76535659ef5ce58b5ff1cb8397dfc7813de",
+  "output": "results/unmatched_frequency_clean.csv",
+  "output_sha256": "f259fc9bef69faf0901a70ccc2a7f5ec2355b19c66991bb9d078f4eca0b1580c",
+  "input_rows": 12,
+  "output_rows": 8,
+  "invalid_rows": 4,
+  "dropped_invalid_rows": 4,
+  "duplicate_rows_removed": 0,
+  "mapped_cells": 2,
+  "mapping_coverage": {
+    "observed_non_empty_cells": 11,
+    "mapped_cells": 2,
+    "unmapped_cells": 9,
+    "coverage_rate": 0.181818,
+    "columns": [
+      {
+        "column": "category",
+        "observed_non_empty_cells": 11,
+        "mapped_cells": 2,
+        "unmapped_cells": 9,
+        "coverage_rate": 0.181818,
+        "distinct_unmatched_values": 3,
+        "unmatched_value_frequencies": [
+          {
+            "value": "unknown",
+            "count": 4
+          },
+          {
+            "value": "alpha",
+            "count": 3
+          },
+          {
+            "value": "beta",
+            "count": 2
+          }
+        ],
+        "unmatched_values_truncated": false
+      }
+    ]
+  },
+  "transformed_cells": 3,
+  "cross_column_failures": 0,
+  "conditional_presence_failures": 0,
+  "error_count": 4,
+  "warning_count": 0,
+  "issues_by_code": {
+    "VALUE_MAPPED": 2,
+    "VALUE_NOT_ALLOWED": 4
+  },
+  "issues": [
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'alpha'",
+      "row": 2,
+      "column": "category",
+      "value": "A"
+    },
+    {
+      "severity": "info",
+      "code": "VALUE_MAPPED",
+      "message": "Mapped value to 'alpha'",
+      "row": 3,
+      "column": "category",
+      "value": "A"
+    },
+    {
+      "severity": "error",
+      "code": "VALUE_NOT_ALLOWED",
+      "message": "Value is not in the configured allowed values",
+      "row": 9,
+      "column": "category",
+      "value": "unknown"
+    },
+    {
+      "severity": "error",
+      "code": "VALUE_NOT_ALLOWED",
+      "message": "Value is not in the configured allowed values",
+      "row": 10,
+      "column": "category",
+      "value": "unknown"
+    },
+    {
+      "severity": "error",
+      "code": "VALUE_NOT_ALLOWED",
+      "message": "Value is not in the configured allowed values",
+      "row": 11,
+      "column": "category",
+      "value": "unknown"
+    },
+    {
+      "severity": "error",
+      "code": "VALUE_NOT_ALLOWED",
+      "message": "Value is not in the configured allowed values",
+      "row": 12,
+      "column": "category",
+      "value": "unknown"
+    }
+  ]
+}

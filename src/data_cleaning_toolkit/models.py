@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 
 
+UNMATCHED_VALUE_LIMIT = 10
+
+
 @dataclass(frozen=True, slots=True)
 class DataIssue:
     severity: str
@@ -51,6 +54,8 @@ class MappingCoverage:
     column: str
     observed_non_empty_cells: int
     mapped_cells: int
+    distinct_unmatched_values: int = 0
+    unmatched_value_frequencies: tuple[tuple[str, int], ...] = ()
 
     @property
     def unmapped_cells(self) -> int:
@@ -62,6 +67,10 @@ class MappingCoverage:
             return None
         return round(self.mapped_cells / self.observed_non_empty_cells, 6)
 
+    @property
+    def unmatched_values_truncated(self) -> bool:
+        return self.distinct_unmatched_values > len(self.unmatched_value_frequencies)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "column": self.column,
@@ -69,6 +78,12 @@ class MappingCoverage:
             "mapped_cells": self.mapped_cells,
             "unmapped_cells": self.unmapped_cells,
             "coverage_rate": self.coverage_rate,
+            "distinct_unmatched_values": self.distinct_unmatched_values,
+            "unmatched_value_frequencies": [
+                {"value": value, "count": count}
+                for value, count in self.unmatched_value_frequencies
+            ],
+            "unmatched_values_truncated": self.unmatched_values_truncated,
         }
 
 

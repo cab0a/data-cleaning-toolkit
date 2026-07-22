@@ -56,6 +56,7 @@ evidence alongside the cleaned data.
 - Maps reviewed source values to explicit canonical values using exact,
   case-sensitive rules
 - Summarizes exact mapping matches by column and across the full input
+- Ranks unmatched mapping-source values by observed frequency
 - Canonicalizes integers, finite decimal values, booleans, and dates
 - Validates required values, allowed values, regular expressions, and numeric
   minimum and maximum bounds
@@ -143,15 +144,25 @@ data-cleaning-toolkit clean examples/mapping_coverage_demo.csv \
   --report output/mapping_coverage_report.json
 ```
 
+Run the controlled unmatched-frequency example:
+
+```bash
+data-cleaning-toolkit clean examples/unmatched_frequency_demo.csv \
+  --schema examples/unmatched_frequency_schema.json \
+  --output output/unmatched_frequency_clean.csv \
+  --report output/unmatched_frequency_report.json
+```
+
 The dirty-data demo is intentionally invalid, so `inspect` and `clean` write
 their outputs and return exit code 1. The value-mapping example also returns 1
 because its final row contains deliberately unmapped values. The cross-column
 example returns 1 because it includes deliberate relationship violations. The
 conditional-presence example returns 1 because it includes deliberately
 missing dependent values. The mapping-coverage example returns 1 because it
-includes one deliberately unknown value. The controlled `suggest-schema`
-example returns 0. These semantics make the CLI usable as a data-quality gate
-in scripts and CI.
+includes one deliberately unknown value. The unmatched-frequency example
+returns 1 because it includes four deliberately unknown values. The controlled
+`suggest-schema` example returns 0. These semantics make the CLI usable as a
+data-quality gate in scripts and CI.
 
 Regenerate the committed reference artifacts with:
 
@@ -255,6 +266,28 @@ committed as
 [`results/mapping_coverage_clean.csv`](results/mapping_coverage_clean.csv),
 and the column and overall summaries are in
 [`results/mapping_coverage_report.json`](results/mapping_coverage_report.json).
+
+### Unmatched Value Frequency Result
+
+The controlled frequency sample contains repeated canonical and unknown values
+that do not match the configured source keys. The CLI lists them by descending
+count:
+
+```text
+category: 2/11 (18.2%)
+  Unmatched values:
+    "unknown": 4
+    "alpha": 3
+    "beta": 2
+```
+
+The sample verifies ordering and counting only. The values `alpha` and `beta`
+are already canonical, while `unknown` fails the configured allowed-value
+rule. This demonstrates why frequency alone cannot determine whether a new
+mapping is appropriate. The clean CSV is committed as
+[`results/unmatched_frequency_clean.csv`](results/unmatched_frequency_clean.csv),
+and the complete controlled audit is in
+[`results/unmatched_frequency_report.json`](results/unmatched_frequency_report.json).
 
 ### Cross-Column Validation Result
 
@@ -469,12 +502,19 @@ For each configured column, the report contains:
 - `unmapped_cells`: observed non-empty cells that did not match a source key
 - `coverage_rate`: `mapped_cells / observed_non_empty_cells`, rounded to six
   decimal places, or `null` when no non-empty cells were observed
+- `distinct_unmatched_values`: number of distinct non-empty source values that
+  did not match a mapping key
+- `unmatched_value_frequencies`: up to ten values with their observed counts
+- `unmatched_values_truncated`: whether additional distinct values were
+  omitted from the summary
 
 The report also includes the same counts across all mapping columns. Counts
 cover all input rows, including rows later dropped by validation or
 deduplication, because the summary describes the supplied data rather than
 only the accepted output. The CLI renders the rate as a percentage and uses
-`n/a` for a zero denominator.
+`n/a` for a zero denominator. Unmatched values are sorted by descending count;
+ties use ascending case-sensitive value order. CLI values are JSON-encoded so
+control characters are escaped.
 
 ### Cross-Column Rules
 
@@ -525,8 +565,8 @@ Each run follows a fixed sequence:
 1. Read the UTF-8 CSV and verify that headers are non-empty and unique.
 2. Record rows whose field count differs from the header.
 3. Apply configured null handling and whitespace trimming.
-4. Count non-empty mapping candidates, apply exact value mappings, and record
-   each match as `VALUE_MAPPED`.
+4. Count non-empty mapping candidates and unmatched source frequencies, apply
+   exact value mappings, and record each match as `VALUE_MAPPED`.
 5. Apply case, type, and date normalization.
 6. Apply required, allowed-value, pattern, and numeric-bound validation.
 7. Apply conditional-presence rules to normalized values.
@@ -551,6 +591,7 @@ The cleaning report includes:
 - Duplicate rows removed
 - Number of cells matched by explicit value mappings
 - Mapping coverage counts and rates by configured column and overall
+- Top unmatched source-value frequencies and truncation metadata by column
 - Number of cells changed by configured normalization
 - Number of failed cross-column rules
 - Number of failed conditional-presence rules
@@ -592,6 +633,8 @@ The test suite covers:
 - Mapping counts and row-level `VALUE_MAPPED` audit evidence
 - Mapping coverage after null handling and trimming, including empty columns,
   invalid rows, per-column rates, overall rates, and CLI reporting
+- Unmatched-value frequency ordering, stable tie-breaking, ten-value limits,
+  truncation metadata, and CLI escaping
 - Equality checks across matching normalized types and ordering checks for
   integer, decimal, and date columns
 - Cross-column schema rejection, empty-value behavior, error de-duplication,
@@ -611,7 +654,7 @@ artifacts on Python 3.10 through 3.14.
 
 ## Limitations
 
-- Version 0.6.0 supports comma-delimited UTF-8 CSV only.
+- Version 0.7.0 supports comma-delimited UTF-8 CSV only.
 - Files are processed in memory and are intended for small and moderate local
   datasets, not distributed or out-of-core workloads.
 - The clean CSV and JSON report are replaced atomically as individual files,
@@ -630,8 +673,14 @@ artifacts on Python 3.10 through 3.14.
 - Mapping coverage is an exact-match rate, not a quality score. Unmapped cells
   may be valid canonical values, unknown values, or values handled by later
   normalization and validation rules.
-- Coverage summaries contain counts only. They do not list or rank unmatched
-  source values and do not recommend new mapping entries.
+- Frequency summaries expose normalized source values in the JSON audit and
+  CLI output. Treat these artifacts as sensitive when inputs may contain
+  confidential, personal, or identifying values.
+- Frequency summaries retain only the top ten distinct unmatched values per
+  column. They are diagnostic samples, not complete frequency tables when
+  `unmatched_values_truncated` is true.
+- The tool does not infer whether an unmatched value is canonical, invalid, or
+  a safe mapping candidate. Mapping changes require domain review.
 - Cross-column rules compare two columns of the same type. Arithmetic
   expressions, multi-column formulas, and cross-row relationships remain
   outside the current scope.
@@ -672,6 +721,8 @@ data-cleaning-toolkit/
 │   ├── mapping_coverage_schema.json
 │   ├── schema_suggestion_demo.csv
 │   ├── schema_suggestion_expected.json
+│   ├── unmatched_frequency_demo.csv
+│   ├── unmatched_frequency_schema.json
 │   ├── value_mapping_demo.csv
 │   ├── value_mapping_schema.json
 │   └── run_demo.py
@@ -687,6 +738,8 @@ data-cleaning-toolkit/
 │   ├── demo_schema_suggestion.json
 │   ├── mapping_coverage_clean.csv
 │   ├── mapping_coverage_report.json
+│   ├── unmatched_frequency_clean.csv
+│   ├── unmatched_frequency_report.json
 │   ├── value_mapping_clean.csv
 │   └── value_mapping_report.json
 ├── src/data_cleaning_toolkit/
@@ -712,9 +765,9 @@ data-cleaning-toolkit/
 ## Roadmap
 
 Possible later improvements include configurable delimiters, streaming
-processing, richer reviewed conditions, unmatched-value frequency summaries,
-and JSON Lines support. They remain outside version 0.6.0 so mapping coverage
-stays compact, deterministic, and safe to inspect.
+processing, richer reviewed conditions, privacy-preserving frequency modes,
+and JSON Lines support. They remain outside version 0.7.0 so unmatched-value
+summaries stay bounded, deterministic, and easy to audit.
 
 ## License
 

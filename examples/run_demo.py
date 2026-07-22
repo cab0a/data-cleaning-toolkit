@@ -44,6 +44,10 @@ def main() -> int:
     coverage_schema = Path("examples/mapping_coverage_schema.json")
     coverage_cleaned = args.output_dir / "mapping_coverage_clean.csv"
     coverage_audit = args.output_dir / "mapping_coverage_report.json"
+    frequency_source = Path("examples/unmatched_frequency_demo.csv")
+    frequency_schema = Path("examples/unmatched_frequency_schema.json")
+    frequency_cleaned = args.output_dir / "unmatched_frequency_clean.csv"
+    frequency_audit = args.output_dir / "unmatched_frequency_report.json"
 
     inspect_status = toolkit_main(
         ["inspect", str(source), "--output", str(inspection)]
@@ -116,6 +120,18 @@ def main() -> int:
             str(coverage_audit),
         ]
     )
+    frequency_status = toolkit_main(
+        [
+            "clean",
+            str(frequency_source),
+            "--schema",
+            str(frequency_schema),
+            "--output",
+            str(frequency_cleaned),
+            "--report",
+            str(frequency_audit),
+        ]
+    )
     if inspect_status != 1:
         raise SystemExit(
             f"Expected inspect status 1 for the malformed demo row, got {inspect_status}"
@@ -148,6 +164,11 @@ def main() -> int:
         raise SystemExit(
             "Expected clean status 1 for the controlled unmapped value, "
             f"got {coverage_status}"
+        )
+    if frequency_status != 1:
+        raise SystemExit(
+            "Expected clean status 1 for the controlled unmatched values, "
+            f"got {frequency_status}"
         )
 
     report = json.loads(suggestion.read_text(encoding="utf-8"))
@@ -248,6 +269,35 @@ def main() -> int:
         raise SystemExit(
             "Mapping coverage totals mismatch: expected "
             f"{expected_coverage}, got {observed_coverage}"
+        )
+
+    frequency_report = json.loads(frequency_audit.read_text(encoding="utf-8"))
+    expected_frequency_summary = {
+        "input_rows": 12,
+        "output_rows": 8,
+        "invalid_rows": 4,
+        "mapped_cells": 2,
+        "error_count": 4,
+    }
+    observed_frequency_summary = {
+        key: frequency_report[key] for key in expected_frequency_summary
+    }
+    if observed_frequency_summary != expected_frequency_summary:
+        raise SystemExit(
+            "Unmatched-frequency evaluation mismatch: expected "
+            f"{expected_frequency_summary}, got {observed_frequency_summary}"
+        )
+    expected_frequencies = [
+        {"value": "unknown", "count": 4},
+        {"value": "alpha", "count": 3},
+        {"value": "beta", "count": 2},
+    ]
+    coverage_column = frequency_report["mapping_coverage"]["columns"][0]
+    if coverage_column["unmatched_value_frequencies"] != expected_frequencies:
+        raise SystemExit(
+            "Unmatched-frequency order mismatch: expected "
+            f"{expected_frequencies}, got "
+            f"{coverage_column['unmatched_value_frequencies']}"
         )
     return 0
 

@@ -24,21 +24,61 @@
         "observed_non_empty_cells": 7,
         "mapped_cells": 5,
         "unmapped_cells": 2,
-        "coverage_rate": 0.714286
+        "coverage_rate": 0.714286,
+        "distinct_unmatched_values": 2,
+        "unmatched_value_frequencies": [
+          {
+            "value": "United States",
+            "count": 1
+          },
+          {
+            "value": "ZZ",
+            "count": 1
+          }
+        ],
+        "unmatched_values_truncated": false
       },
       {
         "column": "membership",
         "observed_non_empty_cells": 7,
         "mapped_cells": 4,
         "unmapped_cells": 3,
-        "coverage_rate": 0.571429
+        "coverage_rate": 0.571429,
+        "distinct_unmatched_values": 3,
+        "unmatched_value_frequencies": [
+          {
+            "value": "VIP",
+            "count": 1
+          },
+          {
+            "value": "premium",
+            "count": 1
+          },
+          {
+            "value": "standard",
+            "count": 1
+          }
+        ],
+        "unmatched_values_truncated": false
       },
       {
         "column": "active",
         "observed_non_empty_cells": 7,
         "mapped_cells": 4,
         "unmapped_cells": 3,
-        "coverage_rate": 0.571429
+        "coverage_rate": 0.571429,
+        "distinct_unmatched_values": 2,
+        "unmatched_value_frequencies": [
+          {
+            "value": "true",
+            "count": 2
+          },
+          {
+            "value": "unknown",
+            "count": 1
+          }
+        ],
+        "unmatched_values_truncated": false
       }
     ]
   },
