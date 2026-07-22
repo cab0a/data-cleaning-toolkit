@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.0] - 2026-07-22
+
+### Added
+
+- Named `conditional_presence_rules` with `when_present` and `require` columns
+- `CONDITIONAL_REQUIRED_VALUE_MISSING` audit events with rule names and
+  normalized trigger values
+- Conditional-presence failure totals in CLI output and JSON cleaning reports
+- Controlled date and review-metadata dependency evaluation artifacts
+
+### Changed
+
+- Conditional-presence validation now runs after per-column normalization and
+  validation and before cross-column validation
+- Expanded the reproducible demo workflow and test suite for normalized nulls,
+  whitespace-only targets, invalid triggers, schema rejection, and CLI output
+
 ## [0.4.0] - 2026-07-22
 
 ### Added

@@ -15,6 +15,7 @@
   "mapped_cells": 13,
   "transformed_cells": 14,
   "cross_column_failures": 0,
+  "conditional_presence_failures": 0,
   "error_count": 3,
   "warning_count": 0,
   "issues_by_code": {

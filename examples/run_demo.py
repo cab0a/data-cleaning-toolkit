@@ -36,6 +36,10 @@ def main() -> int:
     cross_schema = Path("examples/cross_column_schema.json")
     cross_cleaned = args.output_dir / "cross_column_clean.csv"
     cross_audit = args.output_dir / "cross_column_report.json"
+    presence_source = Path("examples/conditional_presence_demo.csv")
+    presence_schema = Path("examples/conditional_presence_schema.json")
+    presence_cleaned = args.output_dir / "conditional_presence_clean.csv"
+    presence_audit = args.output_dir / "conditional_presence_report.json"
 
     inspect_status = toolkit_main(
         ["inspect", str(source), "--output", str(inspection)]
@@ -84,6 +88,18 @@ def main() -> int:
             str(cross_audit),
         ]
     )
+    presence_status = toolkit_main(
+        [
+            "clean",
+            str(presence_source),
+            "--schema",
+            str(presence_schema),
+            "--output",
+            str(presence_cleaned),
+            "--report",
+            str(presence_audit),
+        ]
+    )
     if inspect_status != 1:
         raise SystemExit(
             f"Expected inspect status 1 for the malformed demo row, got {inspect_status}"
@@ -106,6 +122,11 @@ def main() -> int:
         raise SystemExit(
             "Expected clean status 1 for the controlled cross-column failures, "
             f"got {cross_status}"
+        )
+    if presence_status != 1:
+        raise SystemExit(
+            "Expected clean status 1 for the controlled conditional presence "
+            f"failures, got {presence_status}"
         )
 
     report = json.loads(suggestion.read_text(encoding="utf-8"))
@@ -157,6 +178,23 @@ def main() -> int:
         raise SystemExit(
             "Cross-column evaluation mismatch: expected "
             f"{expected_cross_summary}, got {observed_cross_summary}"
+        )
+
+    presence_report = json.loads(presence_audit.read_text(encoding="utf-8"))
+    expected_presence_summary = {
+        "input_rows": 7,
+        "output_rows": 4,
+        "invalid_rows": 3,
+        "conditional_presence_failures": 4,
+        "error_count": 4,
+    }
+    observed_presence_summary = {
+        key: presence_report[key] for key in expected_presence_summary
+    }
+    if observed_presence_summary != expected_presence_summary:
+        raise SystemExit(
+            "Conditional presence evaluation mismatch: expected "
+            f"{expected_presence_summary}, got {observed_presence_summary}"
         )
     return 0
 

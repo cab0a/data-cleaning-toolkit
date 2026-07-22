@@ -17,6 +17,7 @@ TOP_LEVEL_KEYS = {
     "invalid_rows",
     "deduplicate_by",
     "cross_column_rules",
+    "conditional_presence_rules",
     "columns",
 }
 COLUMN_KEYS = {
@@ -36,6 +37,7 @@ COLUMN_KEYS = {
     "value_mapping",
 }
 CROSS_COLUMN_RULE_KEYS = {"name", "left", "operator", "right"}
+CONDITIONAL_PRESENCE_RULE_KEYS = {"name", "when_present", "require"}
 COMPARISON_OPERATORS = {
     "equal",
     "not_equal",
@@ -75,6 +77,13 @@ class CrossColumnRule:
 
 
 @dataclass(frozen=True, slots=True)
+class ConditionalPresenceRule:
+    name: str
+    when_present: str
+    require: str
+
+
+@dataclass(frozen=True, slots=True)
 class CleaningSchema:
     version: int
     columns: tuple[ColumnRule, ...]
@@ -82,6 +91,7 @@ class CleaningSchema:
     invalid_rows: str = "drop"
     deduplicate_by: tuple[str, ...] = ()
     cross_column_rules: tuple[CrossColumnRule, ...] = ()
+    conditional_presence_rules: tuple[ConditionalPresenceRule, ...] = ()
 
     @property
     def column_map(self) -> dict[str, ColumnRule]:
@@ -300,6 +310,49 @@ def _cross_column_rule(
     )
 
 
+def _conditional_presence_rule(
+    raw: Any,
+    index: int,
+    column_map: dict[str, ColumnRule],
+) -> ConditionalPresenceRule:
+    location = f"conditional_presence_rules[{index}]"
+    if not isinstance(raw, dict):
+        raise ValueError(f"{location} must be an object")
+
+    unknown = sorted(set(raw) - CONDITIONAL_PRESENCE_RULE_KEYS)
+    if unknown:
+        raise ValueError(
+            f"{location} contains unknown keys: " + ", ".join(unknown)
+        )
+
+    values: dict[str, str] = {}
+    for key in ("name", "when_present", "require"):
+        value = raw.get(key)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"{location}.{key} must be a non-empty string")
+        values[key] = value
+
+    when_present = values["when_present"]
+    required = values["require"]
+    undefined = sorted({when_present, required} - set(column_map))
+    if undefined:
+        raise ValueError(
+            f"{location} references undefined columns: " + ", ".join(undefined)
+        )
+    if when_present == required:
+        raise ValueError(f"{location} must reference two different columns")
+    if column_map[required].required:
+        raise ValueError(
+            f"{location}.require references an unconditionally required column"
+        )
+
+    return ConditionalPresenceRule(
+        name=values["name"],
+        when_present=when_present,
+        require=required,
+    )
+
+
 def schema_from_mapping(raw: Any) -> CleaningSchema:
     if not isinstance(raw, dict):
         raise ValueError("Schema root must be a JSON object")
@@ -348,6 +401,19 @@ def schema_from_mapping(raw: Any) -> CleaningSchema:
     if len(set(cross_rule_names)) != len(cross_rule_names):
         raise ValueError("cross_column_rules cannot contain duplicate names")
 
+    conditional_presence_rules_raw = raw.get("conditional_presence_rules", [])
+    if not isinstance(conditional_presence_rules_raw, list):
+        raise ValueError("conditional_presence_rules must be a list")
+    conditional_presence_rules = tuple(
+        _conditional_presence_rule(rule, index, column_map)
+        for index, rule in enumerate(conditional_presence_rules_raw)
+    )
+    conditional_rule_names = [rule.name for rule in conditional_presence_rules]
+    if len(set(conditional_rule_names)) != len(conditional_rule_names):
+        raise ValueError(
+            "conditional_presence_rules cannot contain duplicate names"
+        )
+
     return CleaningSchema(
         version=version,
         columns=columns,
@@ -355,6 +421,7 @@ def schema_from_mapping(raw: Any) -> CleaningSchema:
         invalid_rows=invalid_rows,
         deduplicate_by=deduplicate_by,
         cross_column_rules=cross_column_rules,
+        conditional_presence_rules=conditional_presence_rules,
     )
 
 

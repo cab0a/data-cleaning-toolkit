@@ -9,7 +9,12 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from .models import CleaningResult, CsvTable, DataIssue
-from .schema import CleaningSchema, ColumnRule, CrossColumnRule
+from .schema import (
+    CleaningSchema,
+    ColumnRule,
+    ConditionalPresenceRule,
+    CrossColumnRule,
+)
 
 
 COMPARISON_DESCRIPTIONS = {
@@ -303,6 +308,28 @@ def _cross_column_issue(
     )
 
 
+def _conditional_presence_issue(
+    normalized: dict[str, str],
+    rule: ConditionalPresenceRule,
+    *,
+    row_number: int,
+) -> DataIssue | None:
+    condition_value = normalized[rule.when_present]
+    required_value = normalized[rule.require]
+    if condition_value == "" or required_value != "":
+        return None
+
+    return DataIssue(
+        severity="error",
+        code="CONDITIONAL_REQUIRED_VALUE_MISSING",
+        message=f"{rule.require} is required when {rule.when_present} is present",
+        row=row_number,
+        column=rule.require,
+        value=f"{rule.when_present}={condition_value!r}",
+        rule=rule.name,
+    )
+
+
 def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
     headers = _output_headers(table, schema)
     column_rules = schema.column_map
@@ -338,6 +365,15 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
             if value != raw:
                 transformed_cells += 1
 
+        for presence_rule in schema.conditional_presence_rules:
+            presence_issue = _conditional_presence_issue(
+                normalized,
+                presence_rule,
+                row_number=row.row_number,
+            )
+            if presence_issue is not None:
+                row_issues.append(presence_issue)
+
         invalid_columns = {
             issue.column
             for issue in row_issues
@@ -359,7 +395,9 @@ def clean_table(table: CsvTable, schema: CleaningSchema) -> CleaningResult:
                 row_issues.append(cross_issue)
 
         if schema.deduplicate_by:
-            empty_keys = [name for name in schema.deduplicate_by if normalized[name] == ""]
+            empty_keys = [
+                name for name in schema.deduplicate_by if normalized[name] == ""
+            ]
             if empty_keys:
                 row_issues.append(
                     DataIssue(

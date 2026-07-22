@@ -1,6 +1,6 @@
 # Reference Results
 
-These files are deterministic outputs from four synthetic, non-sensitive
+These files are deterministic outputs from five synthetic, non-sensitive
 examples:
 
 - `demo_inspection.json`, `demo_clean.csv`, and
@@ -16,6 +16,10 @@ examples:
 - `cross_column_clean.csv` and `cross_column_report.json` come from the
   controlled relationship cases in `examples/cross_column_demo.csv`, using
   `examples/cross_column_schema.json`.
+- `conditional_presence_clean.csv` and `conditional_presence_report.json`
+  come from the controlled dependency cases in
+  `examples/conditional_presence_demo.csv`, using
+  `examples/conditional_presence_schema.json`.
 
 Regenerate them from the repository root with:
 
@@ -27,8 +31,10 @@ The demo deliberately contains invalid and malformed rows. The underlying
 `inspect` and `clean` commands therefore return exit code 1. The value-mapping
 sample also returns 1 because its final row is deliberately invalid. The
 cross-column sample returns 1 because it contains deliberate relationship
-failures. The wrapper accepts those documented results and exits successfully
-after writing all artifacts and validating the controlled summaries.
+failures. The conditional-presence sample returns 1 because it contains
+deliberately missing dependent values. The wrapper accepts those documented
+results and exits successfully after writing all artifacts and validating the
+controlled summaries.
 
 The schema-suggestion sample defines seven expected column types in
 `examples/schema_suggestion_expected.json`. The reproduction script verifies
@@ -44,3 +50,9 @@ The cross-column check verifies three accepted rows, four invalid rows, and six
 `CROSS_COLUMN_RULE_FAILED` audit events across date ordering, numeric ordering,
 and string equality. It demonstrates deterministic comparison behavior, not
 domain completeness for other datasets.
+
+The conditional-presence check verifies four accepted rows, three invalid
+rows, and four `CONDITIONAL_REQUIRED_VALUE_MISSING` audit events across two
+named dependencies. One null marker and one whitespace-only value are
+normalized before rule evaluation. This demonstrates deterministic dependency
+checking, not domain completeness for other datasets.

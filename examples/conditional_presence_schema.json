@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "unknown_columns": "error",
+  "invalid_rows": "drop",
+  "columns": {
+    "record_id": {
+      "type": "integer",
+      "required": true
+    },
+    "start_date": {
+      "type": "date",
+      "strip": true
+    },
+    "end_date": {
+      "type": "date",
+      "strip": true,
+      "null_values": [
+        "",
+        "N/A"
+      ]
+    },
+    "reviewer": {
+      "type": "string",
+      "strip": true
+    },
+    "reviewed_at": {
+      "type": "date",
+      "strip": true
+    }
+  },
+  "conditional_presence_rules": [
+    {
+      "name": "start_required_when_end_present",
+      "when_present": "end_date",
+      "require": "start_date"
+    },
+    {
+      "name": "reviewer_required_when_reviewed_at_present",
+      "when_present": "reviewed_at",
+      "require": "reviewer"
+    }
+  ]
+}

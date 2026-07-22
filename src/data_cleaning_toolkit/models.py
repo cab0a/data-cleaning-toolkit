@@ -72,6 +72,13 @@ class CleaningResult:
             issue.code == "CROSS_COLUMN_RULE_FAILED" for issue in self.issues
         )
 
+    @property
+    def conditional_presence_failure_count(self) -> int:
+        return sum(
+            issue.code == "CONDITIONAL_REQUIRED_VALUE_MISSING"
+            for issue in self.issues
+        )
+
     def as_report(
         self,
         *,
@@ -101,6 +108,9 @@ class CleaningResult:
             "mapped_cells": self.mapped_cells,
             "transformed_cells": self.transformed_cells,
             "cross_column_failures": self.cross_column_failure_count,
+            "conditional_presence_failures": (
+                self.conditional_presence_failure_count
+            ),
             "error_count": self.error_count,
             "warning_count": self.warning_count,
             "issues_by_code": dict(sorted(counts.items())),

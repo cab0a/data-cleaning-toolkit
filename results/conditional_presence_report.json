@@ -1,0 +1,62 @@
+{
+  "report_version": 1,
+  "source": "examples/conditional_presence_demo.csv",
+  "source_sha256": "56f95ed4c55866b9a6af3354014bc06337e973310a2e962580cfc02fc6ff08ad",
+  "schema": "examples/conditional_presence_schema.json",
+  "schema_version": 1,
+  "schema_sha256": "5ae99a9291b57b24ef1b8b414d1d216d5ace62048408fa528186a732353aad9f",
+  "output": "results/conditional_presence_clean.csv",
+  "output_sha256": "32f54743f55fa8e29e25018996e04b6a2d79e198a5a8e71af0f7d66da2426010",
+  "input_rows": 7,
+  "output_rows": 4,
+  "invalid_rows": 3,
+  "dropped_invalid_rows": 3,
+  "duplicate_rows_removed": 0,
+  "mapped_cells": 0,
+  "transformed_cells": 2,
+  "cross_column_failures": 0,
+  "conditional_presence_failures": 4,
+  "error_count": 4,
+  "warning_count": 0,
+  "issues_by_code": {
+    "CONDITIONAL_REQUIRED_VALUE_MISSING": 4
+  },
+  "issues": [
+    {
+      "severity": "error",
+      "code": "CONDITIONAL_REQUIRED_VALUE_MISSING",
+      "message": "start_date is required when end_date is present",
+      "row": 5,
+      "column": "start_date",
+      "value": "end_date='2026-04-30'",
+      "rule": "start_required_when_end_present"
+    },
+    {
+      "severity": "error",
+      "code": "CONDITIONAL_REQUIRED_VALUE_MISSING",
+      "message": "reviewer is required when reviewed_at is present",
+      "row": 6,
+      "column": "reviewer",
+      "value": "reviewed_at='2026-06-01'",
+      "rule": "reviewer_required_when_reviewed_at_present"
+    },
+    {
+      "severity": "error",
+      "code": "CONDITIONAL_REQUIRED_VALUE_MISSING",
+      "message": "start_date is required when end_date is present",
+      "row": 7,
+      "column": "start_date",
+      "value": "end_date='2026-06-30'",
+      "rule": "start_required_when_end_present"
+    },
+    {
+      "severity": "error",
+      "code": "CONDITIONAL_REQUIRED_VALUE_MISSING",
+      "message": "reviewer is required when reviewed_at is present",
+      "row": 7,
+      "column": "reviewer",
+      "value": "reviewed_at='2026-07-01'",
+      "rule": "reviewer_required_when_reviewed_at_present"
+    }
+  ]
+}

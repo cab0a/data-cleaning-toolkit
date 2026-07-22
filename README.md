@@ -3,8 +3,8 @@
 [![CI](https://github.com/cab0a/data-cleaning-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/cab0a/data-cleaning-toolkit/actions/workflows/ci.yml)
 
 Inspect CSV structure, draft reviewable schema rules, and apply deterministic
-value mapping, column and cross-column validation, normalization, and
-deduplication from the command line.
+value mapping, column, conditional-presence, and cross-column validation,
+normalization, and deduplication from the command line.
 
 **Primary outputs:** a cleaned CSV and machine-readable evidence that traces
 the decisions made from input to output.
@@ -59,6 +59,7 @@ evidence alongside the cleaned data.
 - Validates required values, allowed values, regular expressions, and numeric
   minimum and maximum bounds
 - Validates equality and ordering relationships between normalized columns
+- Requires one normalized value when another normalized value is present
 - Keeps, drops, or rejects columns not defined in the schema
 - Keeps or drops invalid rows according to an explicit policy
 - Removes duplicate normalized keys while retaining the first accepted row
@@ -123,12 +124,22 @@ data-cleaning-toolkit clean examples/cross_column_demo.csv \
   --report output/cross_column_report.json
 ```
 
+Run the controlled conditional-presence example:
+
+```bash
+data-cleaning-toolkit clean examples/conditional_presence_demo.csv \
+  --schema examples/conditional_presence_schema.json \
+  --output output/conditional_presence_clean.csv \
+  --report output/conditional_presence_report.json
+```
+
 The dirty-data demo is intentionally invalid, so `inspect` and `clean` write
 their outputs and return exit code 1. The value-mapping example also returns 1
 because its final row contains deliberately unmapped values. The cross-column
 example returns 1 because it includes deliberate relationship violations. The
-controlled `suggest-schema` example returns 0. These semantics make the CLI
-usable as a data-quality gate in scripts and CI.
+conditional-presence example returns 1 because it includes deliberately
+missing dependent values. The controlled `suggest-schema` example returns 0.
+These semantics make the CLI usable as a data-quality gate in scripts and CI.
 
 Regenerate the committed reference artifacts with:
 
@@ -162,6 +173,7 @@ Duplicate rows removed: 1
 Mapped cells: 0
 Transformed cells: 21
 Cross-column failures: 0
+Conditional presence failures: 0
 ```
 
 The cleaned output is committed as
@@ -230,6 +242,29 @@ documented empty-value behavior. The clean CSV is committed as
 [`results/cross_column_clean.csv`](results/cross_column_clean.csv), and the
 rule identifiers, normalized values, and row-level failures are in
 [`results/cross_column_report.json`](results/cross_column_report.json).
+
+### Conditional Presence Result
+
+The controlled conditional-presence sample checks two dependencies: a start
+date is required when an end date is present, and a reviewer is required when
+a review timestamp is present. Four rows satisfy the configured rules. Three
+rows are dropped with four independent failures:
+
+```text
+Input rows: 7
+Output rows: 4
+Invalid rows: 3
+Transformed cells: 2
+Conditional presence failures: 4
+Errors: 4
+```
+
+One accepted row maps `N/A` to an empty end date before rule evaluation. This
+demonstrates that presence is determined from normalized values rather than
+raw CSV text. The clean CSV is committed as
+[`results/conditional_presence_clean.csv`](results/conditional_presence_clean.csv),
+and the rule identifiers, trigger values, and row-level failures are in
+[`results/conditional_presence_report.json`](results/conditional_presence_report.json).
 
 ## Commands
 
@@ -324,12 +359,10 @@ Unknown schema keys are rejected so a misspelled rule cannot silently pass.
       "min": 0
     },
     "period_start": {
-      "type": "date",
-      "required": true
+      "type": "date"
     },
     "period_end": {
-      "type": "date",
-      "required": true
+      "type": "date"
     }
   },
   "cross_column_rules": [
@@ -338,6 +371,13 @@ Unknown schema keys are rejected so a misspelled rule cannot silently pass.
       "left": "period_start",
       "operator": "less_than_or_equal",
       "right": "period_end"
+    }
+  ],
+  "conditional_presence_rules": [
+    {
+      "name": "start_required_when_end_present",
+      "when_present": "period_end",
+      "require": "period_start"
     }
   ]
 }
@@ -352,6 +392,7 @@ Unknown schema keys are rejected so a misspelled rule cannot silently pass.
 | `invalid_rows` | `keep`, `drop` | Controls rows with validation errors |
 | `deduplicate_by` | list of schema columns | Keeps the first accepted normalized key |
 | `cross_column_rules` | list of comparison rules | Validates relationships between normalized columns |
+| `conditional_presence_rules` | list of presence rules | Requires one normalized value when another is present |
 | `columns` | ordered object | Defines output order when unknown columns are dropped |
 
 ### Column Rules
@@ -399,6 +440,28 @@ already has a validation error. Use `required: true` on the relevant columns
 when empty values must fail. This avoids secondary relationship errors for a
 value that could not be parsed or validated individually.
 
+### Conditional Presence Rules
+
+Each rule has a unique `name`, a `when_present` trigger column, and a `require`
+target column. Both columns must be defined in the schema and must be
+different. The target must not also use `required: true`, because that would
+make the conditional rule redundant.
+
+```json
+{
+  "name": "start_required_when_end_present",
+  "when_present": "end_date",
+  "require": "start_date"
+}
+```
+
+Presence is evaluated after null handling, trimming, value mapping, and type
+normalization. An empty normalized trigger skips the rule. A non-empty trigger
+requires a non-empty normalized target. A non-empty trigger that fails its own
+validation still counts as present, so the report can record both the invalid
+trigger and the missing dependent value. Use the column-level `required` rule
+for unconditional requirements.
+
 ## Processing Order
 
 Each run follows a fixed sequence:
@@ -409,11 +472,12 @@ Each run follows a fixed sequence:
 4. Apply exact value mappings and record each match as `VALUE_MAPPED`.
 5. Apply case, type, and date normalization.
 6. Apply required, allowed-value, pattern, and numeric-bound validation.
-7. Apply cross-column rules to normalized values without existing column
+7. Apply conditional-presence rules to normalized values.
+8. Apply cross-column rules to normalized values without existing column
    errors.
-8. Keep or drop invalid rows according to `invalid_rows`.
-9. Deduplicate accepted rows using normalized key values.
-10. Write the clean CSV and a row-level JSON audit report using atomic file
+9. Keep or drop invalid rows according to `invalid_rows`.
+10. Deduplicate accepted rows using normalized key values.
+11. Write the clean CSV and a row-level JSON audit report using atomic file
    replacement for each artifact.
 
 An invalid row that is dropped does not reserve its deduplication key. This
@@ -431,6 +495,7 @@ The cleaning report includes:
 - Number of cells matched by explicit value mappings
 - Number of cells changed by configured normalization
 - Number of failed cross-column rules
+- Number of failed conditional-presence rules
 - Error and warning counts
 - Counts grouped by stable issue code
 - Row number, column name, original value, and explanation for each issue
@@ -438,10 +503,12 @@ The cleaning report includes:
 Examples of stable issue codes include `VALUE_MAPPED`,
 `MISSING_REQUIRED_VALUE`, `INVALID_DATE`, `PATTERN_MISMATCH`,
 `VALUE_BELOW_MINIMUM`, `CROSS_COLUMN_RULE_FAILED`, `DUPLICATE_KEY`, and
-`ROW_WIDTH_MISMATCH`.
+`ROW_WIDTH_MISMATCH`. Conditional failures use
+`CONDITIONAL_REQUIRED_VALUE_MISSING`.
 `VALUE_MAPPED` has `info` severity and does not affect the command exit code.
 Each cross-column failure records the configured rule name and both normalized
-values.
+values. Each conditional-presence failure records the rule name, target
+column, and normalized trigger value.
 
 ## Exit Codes
 
@@ -469,6 +536,8 @@ The test suite covers:
   integer, decimal, and date columns
 - Cross-column schema rejection, empty-value behavior, error de-duplication,
   rule identifiers, and CLI reporting
+- Conditional-presence schema rejection, post-normalization presence checks,
+  invalid-trigger behavior, rule identifiers, and CLI reporting
 - Keep, drop, and error policies for unknown columns
 - Keep and drop policies for invalid rows
 - Normalized-key deduplication
@@ -482,7 +551,7 @@ artifacts on Python 3.10 through 3.14.
 
 ## Limitations
 
-- Version 0.4.0 supports comma-delimited UTF-8 CSV only.
+- Version 0.5.0 supports comma-delimited UTF-8 CSV only.
 - Files are processed in memory and are intended for small and moderate local
   datasets, not distributed or out-of-core workloads.
 - The clean CSV and JSON report are replaced atomically as individual files,
@@ -498,11 +567,17 @@ artifacts on Python 3.10 through 3.14.
 - Value mappings are exact and case-sensitive. They do not provide fuzzy
   matching, synonym discovery, or mapping suggestions; the configured
   vocabulary must be reviewed for each dataset.
-- Cross-column rules compare two columns of the same type. Conditional
-  requirements, arithmetic expressions, multi-column formulas, and cross-row
-  relationships remain outside the current scope.
+- Cross-column rules compare two columns of the same type. Arithmetic
+  expressions, multi-column formulas, and cross-row relationships remain
+  outside the current scope.
 - Empty cross-column operands are skipped. Required-value rules must be used
   when an empty operand should invalidate the row.
+- Conditional-presence rules support one positive presence condition and one
+  required target. They do not support absence conditions, value predicates,
+  negation, or AND/OR expressions.
+- Presence is independent of trigger validity: an invalid but non-empty
+  trigger still activates the rule. Review both reported issues when this
+  occurs.
 - Regular expressions describe syntax, not semantic correctness. The example
   email expression is deliberately simple.
 - Date parsing uses configured Python `datetime` formats and does not infer
@@ -523,6 +598,8 @@ data-cleaning-toolkit/
 ├── .github/workflows/ci.yml
 ├── examples/
 │   ├── customer_schema.json
+│   ├── conditional_presence_demo.csv
+│   ├── conditional_presence_schema.json
 │   ├── cross_column_demo.csv
 │   ├── cross_column_schema.json
 │   ├── demo_dirty.csv
@@ -533,6 +610,8 @@ data-cleaning-toolkit/
 │   └── run_demo.py
 ├── results/
 │   ├── README.md
+│   ├── conditional_presence_clean.csv
+│   ├── conditional_presence_report.json
 │   ├── cross_column_clean.csv
 │   ├── cross_column_report.json
 │   ├── demo_clean.csv
@@ -564,8 +643,8 @@ data-cleaning-toolkit/
 ## Roadmap
 
 Possible later improvements include configurable delimiters, streaming
-processing, conditional presence rules, mapping coverage summaries, and JSON
-Lines support. They remain outside version 0.4.0 so cross-column comparisons
+processing, mapping coverage summaries, richer reviewed conditions, and JSON
+Lines support. They remain outside version 0.5.0 so conditional requirements
 stay narrow, deterministic, and easy to audit.
 
 ## License

@@ -61,6 +61,32 @@ def test_schema_loads_cross_column_rules() -> None:
     )
 
 
+def test_schema_loads_conditional_presence_rules() -> None:
+    schema = schema_from_mapping(
+        {
+            "columns": {
+                "start_date": {"type": "date"},
+                "end_date": {"type": "date"},
+            },
+            "conditional_presence_rules": [
+                {
+                    "name": "start_required_when_end_present",
+                    "when_present": "end_date",
+                    "require": "start_date",
+                }
+            ],
+        }
+    )
+
+    assert len(schema.conditional_presence_rules) == 1
+    rule = schema.conditional_presence_rules[0]
+    assert (rule.name, rule.when_present, rule.require) == (
+        "start_required_when_end_present",
+        "end_date",
+        "start_date",
+    )
+
+
 @pytest.mark.parametrize(
     ("mapping", "message"),
     [
@@ -227,6 +253,86 @@ def test_schema_rejects_invalid_cross_column_rules(
             "other_label": {"type": "string"},
         },
         "cross_column_rules": rules,
+    }
+
+    with pytest.raises(ValueError, match=message):
+        schema_from_mapping(mapping)
+
+
+@pytest.mark.parametrize(
+    ("rules", "message"),
+    [
+        ({}, "must be a list"),
+        ([{}], "name must be a non-empty string"),
+        (
+            [
+                {
+                    "name": "presence",
+                    "when_present": "end_date",
+                    "require": "start_date",
+                    "unexpected": True,
+                }
+            ],
+            "unknown keys",
+        ),
+        (
+            [
+                {
+                    "name": "presence",
+                    "when_present": "missing",
+                    "require": "start_date",
+                }
+            ],
+            "undefined columns",
+        ),
+        (
+            [
+                {
+                    "name": "self_reference",
+                    "when_present": "start_date",
+                    "require": "start_date",
+                }
+            ],
+            "two different columns",
+        ),
+        (
+            [
+                {
+                    "name": "redundant",
+                    "when_present": "end_date",
+                    "require": "always_required",
+                }
+            ],
+            "unconditionally required",
+        ),
+        (
+            [
+                {
+                    "name": "duplicate",
+                    "when_present": "end_date",
+                    "require": "start_date",
+                },
+                {
+                    "name": "duplicate",
+                    "when_present": "start_date",
+                    "require": "end_date",
+                },
+            ],
+            "duplicate names",
+        ),
+    ],
+)
+def test_schema_rejects_invalid_conditional_presence_rules(
+    rules: object,
+    message: str,
+) -> None:
+    mapping = {
+        "columns": {
+            "start_date": {"type": "date"},
+            "end_date": {"type": "date"},
+            "always_required": {"type": "string", "required": True},
+        },
+        "conditional_presence_rules": rules,
     }
 
     with pytest.raises(ValueError, match=message):
