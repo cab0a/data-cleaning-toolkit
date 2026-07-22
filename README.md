@@ -27,6 +27,11 @@ value changes only when a reviewed cleaning schema says how it should change.
 Invalid values remain visible in an audit report even when the corresponding
 rows are excluded from the clean output.
 
+Version 1.0.0 establishes the supported package-root Python API, CLI commands
+and exit-code meanings, and cleaning-report version 1 as stable compatibility
+boundaries. Compatible 1.x releases may extend them without requiring existing
+callers or report consumers to be rewritten.
+
 ## Problem
 
 Tabular data often arrives with whitespace differences, inconsistent casing,
@@ -727,6 +732,8 @@ The test suite covers:
 - CLI output, audit reports, default naming, and input overwrite protection
 - Root-package API exports, in-memory schema construction, executable API
   examples, and typed-package metadata
+- Version consistency, documented public function parameters, CLI version
+  output, and required cleaning-report version 1 fields
 - Portable reference checksums, changed-artifact detection, and committed
   manifest verification
 - Conservative type suggestion, partial parse coverage, optional fields,
@@ -735,11 +742,13 @@ The test suite covers:
 GitHub Actions installs the package, checks the CLI and public API example,
 runs the tests, regenerates the reference results, verifies their checksum
 manifest, and requires those results to match the committed artifacts on
-Python 3.10 through 3.14.
+Python 3.10 through 3.14. A separate job builds both distribution formats,
+installs the wheel, and verifies the installed CLI, public API example, and
+typed-package marker.
 
 ## Limitations
 
-- Version 0.9.0 supports comma-delimited UTF-8 CSV only.
+- Version 1.0.0 supports comma-delimited UTF-8 CSV only.
 - Files are processed in memory and are intended for small and moderate local
   datasets, not distributed or out-of-core workloads.
 - The clean CSV and JSON report are replaced atomically as individual files,
@@ -866,11 +875,12 @@ data-cleaning-toolkit/
 
 ## Roadmap
 
-Version 0.9.0 defines the release-candidate public API, report contract, and
-reproducibility workflow. Version 1.0.0 will focus on final compatibility,
-documentation, installation, and release review rather than new cleaning
-features. Configurable delimiters, streaming processing, richer conditions,
-and JSON Lines remain post-1.0 candidates.
+Version 1.0.0 establishes the stable public API, CLI contract, cleaning-report
+version 1, and reproducibility workflow. The 1.x series will prioritize
+compatible maintenance, documentation, and controlled evaluation. Configurable
+delimiters, streaming processing, richer conditions, and JSON Lines remain
+future candidates and will be evaluated without weakening the version 1
+contracts.
 
 ## License
 

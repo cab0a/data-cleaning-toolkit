@@ -1,6 +1,6 @@
 # Public Python API
 
-Version 0.9.0 defines the supported programmatic interface at the
+Version 1.0.0 defines the supported programmatic interface at the
 `data_cleaning_toolkit` package root. The command-line interface remains the
 recommended path when atomic file output and SHA-256 provenance are required.
 
@@ -8,11 +8,24 @@ recommended path when atomic file output and SHA-256 provenance are required.
 
 Names listed in `data_cleaning_toolkit.__all__` are public. Imports from
 submodules such as `data_cleaning_toolkit.cleaning` are implementation details
-and may change during the pre-1.0 series.
+and may change without notice.
 
 The package includes a `py.typed` marker, so type checkers can use its inline
 annotations. Runtime dependencies remain limited to the Python standard
 library.
+
+During the 1.x series, documented public names will not be removed or renamed,
+and their required parameters and documented meanings will not change
+incompatibly. Compatible releases may add public names, optional parameters,
+or model fields. A change that requires existing callers to be rewritten will
+require a new major package version.
+
+The public compatibility boundary does not include exception message text,
+human-readable console wording, ordering of undocumented collections, or
+imports from package submodules. The CLI commands, required arguments, and
+documented exit-code meanings are supported throughout the 1.x series. JSON
+consumers should follow the separate `report_version` contract rather than
+parsing console output.
 
 ## Example
 

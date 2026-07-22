@@ -41,7 +41,7 @@ def test_supported_public_api_is_exported_from_package_root() -> None:
 
     assert set(data_cleaning_toolkit.__all__) == expected
     assert all(hasattr(data_cleaning_toolkit, name) for name in expected)
-    assert data_cleaning_toolkit.__version__ == "0.9.0"
+    assert data_cleaning_toolkit.__version__ == "1.0.0"
 
 
 def test_public_api_supports_file_and_in_memory_schemas() -> None:

@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.0] - 2026-07-22
+
+### Added
+
+- Stable-release contract tests for package metadata, public function
+  parameters, CLI version output, and required cleaning-report fields
+- CI distribution job that builds source and wheel artifacts, installs the
+  wheel, exercises the installed CLI and public API sample, and verifies typed
+  package metadata
+
+### Changed
+
+- Public API documentation now defines the supported 1.x compatibility
+  boundary and distinguishes it from internal modules and console wording
+- Package metadata now identifies the release as stable and typed
+- README, report-contract, reproducibility, and roadmap documentation now
+  describe the version 1.0 support boundary
+
+### Compatibility
+
+- Cleaning rules, normalized output, report serialization, exit-code meanings,
+  and the set of 16 reference artifacts are unchanged from version 0.9.0
+
 ## [0.9.0] - 2026-07-22
 
 ### Added

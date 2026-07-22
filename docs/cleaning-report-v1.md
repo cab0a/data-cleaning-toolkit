@@ -2,7 +2,7 @@
 
 The `clean` command writes a UTF-8 JSON audit with `report_version` set to `1`.
 This document defines the version 1 contract used by Data Cleaning Toolkit
-0.9.0.
+1.0.0.
 
 ## Compatibility Policy
 
