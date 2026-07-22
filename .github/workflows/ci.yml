@@ -39,11 +39,17 @@ jobs:
           data-cleaning-toolkit --help
           data-cleaning-toolkit suggest-schema --help
 
+      - name: Check public Python API example
+        run: python examples/public_api_demo.py
+
       - name: Run tests
         run: python -m pytest
 
       - name: Reproduce reference results
         run: python examples/run_demo.py
+
+      - name: Verify reference checksums
+        run: python examples/run_demo.py --verify-only
 
       - name: Verify committed reference results
         run: git diff --exit-code -- results/

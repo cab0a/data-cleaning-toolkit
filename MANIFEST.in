@@ -1,3 +1,5 @@
 include CHANGELOG.md
+include src/data_cleaning_toolkit/py.typed
+recursive-include docs *.md
 recursive-include examples *.csv *.json *.py
-recursive-include results *.csv *.json *.md
+recursive-include results *.csv *.json *.md *.sha256

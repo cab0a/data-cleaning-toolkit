@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.0] - 2026-07-22
+
+### Added
+
+- Supported root-package Python API for reading, schema loading, suggestion,
+  inspection, and in-memory cleaning
+- `py.typed` marker and packaged inline type information
+- Executable public API example using only supported imports
+- Version 1 cleaning-report contract and reproducibility documentation
+- Portable SHA-256 manifest for all 16 reference CSV and JSON artifacts
+- Manifest verification for changed, missing, unexpected, or malformed results
+
+### Changed
+
+- CI now verifies the reference checksum manifest before checking the result
+  diff
+- Documentation now distinguishes the package API, report format version, and
+  CLI side-effect boundary
+
 ## [0.8.0] - 2026-07-22
 
 ### Added

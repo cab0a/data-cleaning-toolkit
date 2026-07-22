@@ -38,6 +38,16 @@ Regenerate them from the repository root with:
 python examples/run_demo.py
 ```
 
+Verify the 16 committed CSV and JSON artifacts against the portable SHA-256
+manifest without regenerating them:
+
+```bash
+python examples/run_demo.py --verify-only
+```
+
+The manifest uses artifact filenames rather than machine-specific absolute
+paths. It excludes this README and the manifest itself.
+
 The demo deliberately contains invalid and malformed rows. The underlying
 `inspect` and `clean` commands therefore return exit code 1. The value-mapping
 sample also returns 1 because its final row is deliberately invalid. The

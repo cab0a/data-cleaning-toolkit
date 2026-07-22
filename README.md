@@ -68,6 +68,9 @@ evidence alongside the cleaned data.
 - Removes duplicate normalized keys while retaining the first accepted row
 - Writes deterministic UTF-8 CSV and JSON outputs
 - Records SHA-256 digests for the input, schema, and clean CSV
+- Exposes a typed public Python API from the package root
+- Documents the version 1 cleaning-report compatibility contract
+- Verifies 16 committed reference artifacts with a portable checksum manifest
 - Replaces each output atomically after it has been written successfully
 - Uses only the Python standard library at runtime
 - Includes intentionally dirty and controlled demonstration datasets,
@@ -185,6 +188,24 @@ Run the tests with:
 ```bash
 python -m pytest
 ```
+
+Run the public Python API example:
+
+```bash
+python examples/public_api_demo.py
+```
+
+Verify the committed reference artifacts without regenerating them:
+
+```bash
+python examples/run_demo.py --verify-only
+```
+
+## Documentation
+
+- [Public Python API](docs/public-api.md)
+- [Cleaning Report Version 1](docs/cleaning-report-v1.md)
+- [Reproducibility](docs/reproducibility.md)
 
 ## Demonstration Result
 
@@ -704,16 +725,21 @@ The test suite covers:
 - Keep and drop policies for invalid rows
 - Normalized-key deduplication
 - CLI output, audit reports, default naming, and input overwrite protection
+- Root-package API exports, in-memory schema construction, executable API
+  examples, and typed-package metadata
+- Portable reference checksums, changed-artifact detection, and committed
+  manifest verification
 - Conservative type suggestion, partial parse coverage, optional fields,
   whitespace evidence, alternate date formats, and leading-zero protection
 
-GitHub Actions installs the package, checks the CLI, runs the tests, regenerates
-the reference results, and verifies that those results match the committed
-artifacts on Python 3.10 through 3.14.
+GitHub Actions installs the package, checks the CLI and public API example,
+runs the tests, regenerates the reference results, verifies their checksum
+manifest, and requires those results to match the committed artifacts on
+Python 3.10 through 3.14.
 
 ## Limitations
 
-- Version 0.8.0 supports comma-delimited UTF-8 CSV only.
+- Version 0.9.0 supports comma-delimited UTF-8 CSV only.
 - Files are processed in memory and are intended for small and moderate local
   datasets, not distributed or out-of-core workloads.
 - The clean CSV and JSON report are replaced atomically as individual files,
@@ -775,6 +801,10 @@ artifacts on Python 3.10 through 3.14.
 ```text
 data-cleaning-toolkit/
 ├── .github/workflows/ci.yml
+├── docs/
+│   ├── cleaning-report-v1.md
+│   ├── public-api.md
+│   └── reproducibility.md
 ├── examples/
 │   ├── customer_schema.json
 │   ├── conditional_presence_demo.csv
@@ -786,6 +816,7 @@ data-cleaning-toolkit/
 │   ├── mapping_coverage_schema.json
 │   ├── privacy_modes_demo.csv
 │   ├── privacy_modes_schema.json
+│   ├── public_api_demo.py
 │   ├── schema_suggestion_demo.csv
 │   ├── schema_suggestion_expected.json
 │   ├── unmatched_frequency_demo.csv
@@ -795,6 +826,7 @@ data-cleaning-toolkit/
 │   └── run_demo.py
 ├── results/
 │   ├── README.md
+│   ├── checksums.sha256
 │   ├── conditional_presence_clean.csv
 │   ├── conditional_presence_report.json
 │   ├── cross_column_clean.csv
@@ -819,6 +851,7 @@ data-cleaning-toolkit/
 │   ├── csv_table.py
 │   ├── inspection.py
 │   ├── models.py
+│   ├── py.typed
 │   ├── reporting.py
 │   ├── schema.py
 │   └── suggestion.py
@@ -833,10 +866,11 @@ data-cleaning-toolkit/
 
 ## Roadmap
 
-Possible later improvements include configurable delimiters, streaming
-processing, richer reviewed conditions, opt-in report-field suppression, and
-JSON Lines support. They remain outside version 0.8.0 so the privacy modes stay
-explicit, deterministic, and easy to audit.
+Version 0.9.0 defines the release-candidate public API, report contract, and
+reproducibility workflow. Version 1.0.0 will focus on final compatibility,
+documentation, installation, and release review rather than new cleaning
+features. Configurable delimiters, streaming processing, richer conditions,
+and JSON Lines remain post-1.0 candidates.
 
 ## License
 

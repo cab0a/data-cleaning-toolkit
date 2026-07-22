@@ -3,21 +3,110 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 
 from data_cleaning_toolkit.cli import main as toolkit_main
 
 
 ROOT = Path(__file__).resolve().parents[1]
+CHECKSUM_MANIFEST = "checksums.sha256"
+RESULT_SUFFIXES = {".csv", ".json"}
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _result_artifacts(output_dir: Path) -> list[Path]:
+    return sorted(
+        path
+        for path in output_dir.iterdir()
+        if path.is_file() and path.suffix in RESULT_SUFFIXES
+    )
+
+
+def _write_checksum_manifest(output_dir: Path) -> Path:
+    manifest = output_dir / CHECKSUM_MANIFEST
+    lines = [
+        f"{_sha256_file(path)}  {path.name}\n"
+        for path in _result_artifacts(output_dir)
+    ]
+    manifest.write_text("".join(lines), encoding="utf-8", newline="\n")
+    return manifest
+
+
+def _verify_checksum_manifest(output_dir: Path) -> int:
+    manifest = output_dir / CHECKSUM_MANIFEST
+    if not manifest.is_file():
+        raise ValueError(f"Checksum manifest not found: {manifest}")
+
+    expected: dict[str, str] = {}
+    for line_number, line in enumerate(
+        manifest.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        parts = line.split("  ", maxsplit=1)
+        if len(parts) != 2:
+            raise ValueError(f"Invalid checksum line {line_number}")
+        digest, name = parts
+        valid_digest = len(digest) == 64 and all(
+            character in "0123456789abcdef" for character in digest
+        )
+        if not valid_digest:
+            raise ValueError(f"Invalid SHA-256 on line {line_number}")
+        if (
+            not name
+            or "/" in name
+            or "\\" in name
+            or Path(name).name != name
+        ):
+            raise ValueError(f"Invalid artifact name on line {line_number}")
+        if name in expected:
+            raise ValueError(f"Duplicate artifact in manifest: {name}")
+        expected[name] = digest
+
+    actual = {path.name: path for path in _result_artifacts(output_dir)}
+    missing = sorted(set(expected) - set(actual))
+    unexpected = sorted(set(actual) - set(expected))
+    if missing or unexpected:
+        details = []
+        if missing:
+            details.append("missing: " + ", ".join(missing))
+        if unexpected:
+            details.append("unexpected: " + ", ".join(unexpected))
+        raise ValueError("Artifact set mismatch (" + "; ".join(details) + ")")
+
+    mismatched = [
+        name
+        for name, digest in expected.items()
+        if _sha256_file(actual[name]) != digest
+    ]
+    if mismatched:
+        raise ValueError("Checksum mismatch: " + ", ".join(mismatched))
+    return len(expected)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
+    parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args()
     os.chdir(ROOT)
+    if args.verify_only:
+        try:
+            verified = _verify_checksum_manifest(args.output_dir)
+        except ValueError as exc:
+            print(f"Verification failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"Verified: {verified} reference artifacts")
+        return 0
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     source = Path("examples/demo_dirty.csv")
@@ -368,6 +457,8 @@ def main() -> int:
     )
     if any(value in privacy_audit_text for value in hidden_values):
         raise SystemExit("Privacy-mode report exposed a protected sample value")
+    manifest = _write_checksum_manifest(args.output_dir)
+    print(f"Checksums: {manifest}")
     return 0
 
 
